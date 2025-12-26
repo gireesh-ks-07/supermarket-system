@@ -166,50 +166,51 @@ export default function POSPage() {
                 </div>
             </div>
 
-            <div className="flex flex-1 gap-6 overflow-hidden">
+            <div className="flex flex-col lg:flex-row flex-1 gap-6 overflow-hidden">
                 {/* Left: Cart */}
-                <Card className="flex-[2] flex flex-col p-0 overflow-hidden">
-                    <div className="p-4 bg-white/5 border-b border-white/5 grid grid-cols-12 gap-4 font-semibold text-slate-300">
-                        <div className="col-span-1">#</div>
-                        <div className="col-span-5">Item</div>
-                        <div className="col-span-2 text-center">Price</div>
-                        <div className="col-span-2 text-center">Qty</div>
-                        <div className="col-span-2 text-right">Total</div>
+                <Card className="flex-[2] flex flex-col p-0 overflow-hidden min-h-[400px]">
+                    <div className="p-4 bg-white/5 border-b border-white/5 grid grid-cols-12 gap-2 lg:gap-4 font-semibold text-slate-300 text-xs lg:text-sm">
+                        <div className="col-span-1 hidden sm:block">#</div>
+                        <div className="col-span-6 sm:col-span-5">Item</div>
+                        <div className="col-span-2 text-center hidden sm:block">Price</div>
+                        <div className="col-span-3 sm:col-span-2 text-center">Qty</div>
+                        <div className="col-span-3 sm:col-span-2 text-right">Total</div>
                     </div>
                     <div className="flex-1 overflow-auto p-2 space-y-2">
                         {cart.map((item, idx) => (
-                            <div key={item.cartId} className="group grid grid-cols-12 gap-4 items-center p-3 rounded-lg hover:bg-white/5 transition-colors text-sm">
-                                <div className="col-span-1 text-slate-500">{idx + 1}</div>
-                                <div className="col-span-5">
-                                    <div className="flex items-baseline gap-2">
-                                        <p className="font-medium truncate">{item.name}</p>
-                                        <span className="text-xs px-1.5 py-0.5 rounded bg-white/10 text-slate-300">{item.unit}</span>
+                            <div key={item.cartId} className="group grid grid-cols-12 gap-2 lg:gap-4 items-center p-2 lg:p-3 rounded-lg hover:bg-white/5 transition-colors text-xs lg:text-sm">
+                                <div className="col-span-1 text-slate-500 hidden sm:block">{idx + 1}</div>
+                                <div className="col-span-6 sm:col-span-5">
+                                    <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 lg:gap-2">
+                                        <p className="font-medium truncate max-w-[120px] lg:max-w-none">{item.name}</p>
+                                        <span className="text-[10px] px-1 lg:px-1.5 py-0.5 rounded bg-white/10 text-slate-300 w-fit">{item.unit}</span>
                                     </div>
-                                    <p className="text-xs text-slate-500">{item.barcode}</p>
+                                    <p className="text-[10px] text-slate-500 hidden sm:block">{item.barcode}</p>
+                                    <p className="text-[10px] text-slate-500 sm:hidden">{formatCurrency(item.sellingPrice)}</p>
                                 </div>
-                                <div className="col-span-2 text-center text-slate-400">{formatCurrency(item.sellingPrice)}</div>
-                                <div className="col-span-2 flex items-center justify-center gap-2">
-                                    <button onClick={() => updateQuantity(item.id, -1)} className="p-1 hover:bg-white/10 rounded"><Minus size={14} /></button>
-                                    <span className="w-6 text-center">{item.quantity}</span>
-                                    <button onClick={() => updateQuantity(item.id, 1)} className="p-1 hover:bg-white/10 rounded"><Plus size={14} /></button>
+                                <div className="col-span-2 text-center text-slate-400 hidden sm:block">{formatCurrency(item.sellingPrice)}</div>
+                                <div className="col-span-3 sm:col-span-2 flex items-center justify-center gap-1 sm:gap-2">
+                                    <button onClick={() => updateQuantity(item.id, -1)} className="p-1 hover:bg-white/10 rounded"><Minus size={12} /></button>
+                                    <span className="w-4 sm:w-6 text-center">{item.quantity}</span>
+                                    <button onClick={() => updateQuantity(item.id, 1)} className="p-1 hover:bg-white/10 rounded"><Plus size={12} /></button>
                                 </div>
-                                <div className="col-span-2 text-right font-bold text-green-400 flex items-center justify-end gap-2">
+                                <div className="col-span-3 sm:col-span-2 text-right font-bold text-green-400 flex items-center justify-end gap-1 sm:gap-2">
                                     {formatCurrency(item.total)}
-                                    <button onClick={() => removeItem(item.id)} className="text-red-400 opacity-50 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-opacity"><Trash size={14} /></button>
+                                    <button onClick={() => removeItem(item.id)} className="text-red-400 lg:opacity-50 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-opacity"><Trash size={12} /></button>
                                 </div>
                             </div>
                         ))}
                         {cart.length === 0 && (
-                            <div className="h-full flex flex-col items-center justify-center text-slate-500 opacity-50">
+                            <div className="h-full flex flex-col items-center justify-center text-slate-500 opacity-50 py-12">
                                 <Search size={48} className="mb-4" />
-                                <p>Scan barcode or search product</p>
+                                <p className="text-sm">Scan barcode or search product</p>
                             </div>
                         )}
                     </div>
                 </Card>
 
                 {/* Right: Actions */}
-                <div className="flex-1 flex flex-col gap-4">
+                <div className="w-full lg:w-96 flex flex-col gap-4">
                     <Card className="p-4 relative z-20">
                         <div className="relative">
                             <Search className="absolute left-3 top-2.5 text-slate-400 pointer-events-none" size={20} />
@@ -259,11 +260,11 @@ export default function POSPage() {
                                             }}
                                         >
                                             <div>
-                                                <p className="font-medium text-white">
+                                                <p className="font-medium text-white text-sm">
                                                     {product.name}
-                                                    <span className="ml-2 text-xs font-normal text-slate-400 bg-white/10 px-1 rounded">{product.unit}</span>
+                                                    <span className="ml-2 text-[10px] font-normal text-slate-400 bg-white/10 px-1 rounded">{product.unit}</span>
                                                 </p>
-                                                <p className="text-xs text-slate-400">{product.barcode} • {formatCurrency(product.sellingPrice)}</p>
+                                                <p className="text-[10px] text-slate-400">{product.barcode} • {formatCurrency(product.sellingPrice)}</p>
                                             </div>
                                             <Plus size={16} className="text-green-400" />
                                         </button>
@@ -277,8 +278,8 @@ export default function POSPage() {
                         )}
                     </Card>
 
-                    <Card className="flex-1 flex flex-col justify-end p-6">
-                        <div className="space-y-3 mb-6 text-slate-300">
+                    <Card className="flex flex-col justify-end p-4 lg:p-6">
+                        <div className="space-y-2 lg:space-y-3 mb-4 lg:mb-6 text-slate-300 text-sm">
                             <div className="flex justify-between">
                                 <span>Subtotal</span>
                                 <span>{formatCurrency(subTotal)}</span>
@@ -287,27 +288,27 @@ export default function POSPage() {
                                 <span>Tax (10%)</span>
                                 <span>{formatCurrency(tax)}</span>
                             </div>
-                            <div className="flex justify-between items-end pt-4 border-t border-white/10">
-                                <span className="text-lg">Total Payable</span>
-                                <span className="text-4xl font-bold text-white">{formatCurrency(total)}</span>
+                            <div className="flex justify-between items-end pt-3 lg:pt-4 border-t border-white/10">
+                                <span className="text-base lg:text-lg">Total Payable</span>
+                                <span className="text-2xl lg:text-4xl font-bold text-white">{formatCurrency(total)}</span>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 mb-3">
-                            <Button variant="secondary" onClick={saveDraft} disabled={cart.length === 0} className="col-span-2 justify-center py-3 border-dashed border-slate-600 text-slate-400 hover:text-white hover:border-white">
+                        <div className="grid grid-cols-2 gap-2 lg:gap-3 mb-2 lg:mb-3">
+                            <Button variant="secondary" onClick={saveDraft} disabled={cart.length === 0} className="col-span-2 justify-center py-2 lg:py-3 border-dashed border-slate-600 text-slate-400 hover:text-white hover:border-white text-xs lg:text-sm">
                                 + Hold Bill / New
                             </Button>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
-                            <Button variant="secondary" className="justify-center py-4 bg-green-600 hover:bg-green-500 text-white" onClick={() => handleCheckout('CASH')}>
-                                <Banknote className="mr-2" /> CASH
+                        <div className="grid grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2 lg:gap-3">
+                            <Button variant="secondary" className="justify-center py-3 lg:py-4 bg-green-600 hover:bg-green-500 text-white text-xs lg:text-sm" onClick={() => handleCheckout('CASH')}>
+                                <Banknote className="mr-2" size={18} /> CASH
                             </Button>
-                            <Button variant="secondary" className="justify-center py-4 bg-blue-600 hover:bg-blue-500 text-white" onClick={() => handleCheckout('CARD')}>
-                                <CreditCard className="mr-2" /> CARD
+                            <Button variant="secondary" className="justify-center py-3 lg:py-4 bg-blue-600 hover:bg-blue-500 text-white text-xs lg:text-sm" onClick={() => handleCheckout('CARD')}>
+                                <CreditCard className="mr-2" size={18} /> CARD
                             </Button>
-                            <Button variant="secondary" className="justify-center py-4 col-span-2 bg-purple-600 hover:bg-purple-500 text-white" onClick={() => handleCheckout('UPI')}>
-                                <QrCode className="mr-2" /> UPI / QR
+                            <Button variant="secondary" className="justify-center py-3 lg:py-4 col-span-2 bg-purple-600 hover:bg-purple-500 text-white text-xs lg:text-sm" onClick={() => handleCheckout('UPI')}>
+                                <QrCode className="mr-2" size={18} /> UPI / QR
                             </Button>
                         </div>
                     </Card>

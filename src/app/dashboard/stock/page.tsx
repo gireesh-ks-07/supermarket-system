@@ -51,22 +51,22 @@ export default function StockPage() {
                     </h1>
                     <p className="text-sm text-slate-400">Manage inventory flow and vendor relationships</p>
                 </div>
-                <div className="flex bg-slate-900/50 p-1 rounded-lg border border-slate-800">
+                <div className="flex bg-slate-900/50 p-1 rounded-lg border border-slate-800 overflow-x-auto no-scrollbar">
                     <button
                         onClick={() => setView('inventory')}
-                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${view === 'inventory' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}
+                        className={`px-3 lg:px-4 py-2 rounded-md text-xs lg:text-sm font-medium transition-all whitespace-nowrap ${view === 'inventory' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}
                     >
                         Inventory & Batches
                     </button>
                     <button
                         onClick={() => setView('suppliers')}
-                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${view === 'suppliers' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}
+                        className={`px-3 lg:px-4 py-2 rounded-md text-xs lg:text-sm font-medium transition-all whitespace-nowrap ${view === 'suppliers' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}
                     >
                         Supplier Directory
                     </button>
                     <button
                         onClick={() => setView('purchases')}
-                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${view === 'purchases' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}
+                        className={`px-3 lg:px-4 py-2 rounded-md text-xs lg:text-sm font-medium transition-all whitespace-nowrap ${view === 'purchases' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}
                     >
                         Purchase Orders
                     </button>
@@ -151,7 +151,7 @@ function InventoryView() {
 
     return (
         <div className="space-y-6">
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card className="p-4 flex items-center justify-between bg-emerald-500/5 border-emerald-500/20">
                     <div>
                         <p className="text-emerald-400 text-sm font-medium">Total Batches</p>
@@ -179,13 +179,13 @@ function InventoryView() {
             </div>
 
             <Card className="p-0 overflow-hidden min-h-[400px]">
-                <div className="p-4 border-b border-white/5 flex justify-between items-center">
-                    <div className="relative w-64">
+                <div className="p-4 border-b border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="relative w-full sm:w-64">
                         <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
                         <input
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-700 rounded pl-9 pr-3 py-2 text-sm text-white"
+                            className="w-full bg-slate-900 border border-slate-700 rounded pl-9 pr-3 py-2 text-sm text-white focus:border-purple-500/50 outline-none transition-colors"
                             placeholder="Search batch or product..."
                         />
                     </div>
@@ -194,7 +194,7 @@ function InventoryView() {
                             setEditBatchId(null)
                             setFormData({ productId: '', batchNumber: '', quantity: '1', expiryDate: '' })
                             setIsAddModalOpen(true)
-                        }}>
+                        }} className="w-full sm:w-auto">
                             <Plus size={16} /> Add New Stock
                         </Button>
                     )}
@@ -442,10 +442,10 @@ function SuppliersView({ onViewOrders }: { onViewOrders: (id: string) => void })
     return (
         <React.Fragment>
             <Card className="p-0 overflow-hidden min-h-[400px]">
-                <div className="p-4 border-b border-white/5 flex justify-between items-center">
-                    <h3 className="font-bold text-white">Registered Suppliers</h3>
+                <div className="p-4 border-b border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <h3 className="font-bold text-white text-lg">Registered Suppliers</h3>
                     {canManageStock && (
-                        <Button onClick={() => { setEditingId(null); setFormData({ name: '', phone: '', address: '', gstNumber: '' }); setIsAddModalOpen(true); }} variant="secondary" className="border-dashed border-slate-600 text-slate-400 hover:text-white hover:border-white">
+                        <Button onClick={() => { setEditingId(null); setFormData({ name: '', phone: '', address: '', gstNumber: '' }); setIsAddModalOpen(true); }} variant="secondary" className="w-full sm:w-auto border-dashed border-slate-600 text-slate-400 hover:text-white hover:border-white">
                             <Plus size={16} /> Add New Supplier
                         </Button>
                     )}
@@ -696,18 +696,18 @@ function PurchasesView({ filterSupplierId, clearFilter }: { filterSupplierId: st
     return (
         <React.Fragment>
             <Card className="p-0 overflow-hidden min-h-[400px]">
-                <div className="p-4 border-b border-white/5 flex justify-between items-center">
-                    <div className="flex items-center gap-4">
-                        <h3 className="font-bold text-white">Purchase Orders</h3>
+                <div className="p-4 border-b border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="flex flex-wrap items-center gap-2 lg:gap-4">
+                        <h3 className="font-bold text-white text-lg">Purchase Orders</h3>
                         {filterSupplierId && (
-                            <span className="flex items-center gap-2 px-2 py-1 text-xs rounded bg-blue-500/20 text-blue-400">
+                            <span className="flex items-center gap-2 px-2 py-1 text-[10px] sm:text-xs rounded bg-blue-500/20 text-blue-400">
                                 Filtered by Supplier
                                 <button onClick={clearFilter} className="hover:text-white"><X size={12} /></button>
                             </span>
                         )}
                     </div>
                     {canManageStock && (
-                        <Button onClick={() => setIsAddModalOpen(true)}>
+                        <Button onClick={() => setIsAddModalOpen(true)} className="w-full sm:w-auto">
                             <Plus size={16} /> New Purchase Order
                         </Button>
                     )}

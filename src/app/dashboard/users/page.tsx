@@ -107,17 +107,17 @@ export default function UsersPage() {
                 </Button>
             </div>
 
-            <div className="grid grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
                 {users.map(user => (
-                    <Card key={user.id} className="group hover:border-purple-500/30 transition-all">
+                    <Card key={user.id} className="group hover:border-purple-500/30 transition-all p-4 lg:p-6">
                         <div className="flex justify-between items-start mb-4">
-                            <div className={`p-3 rounded-xl ${user.role === 'ADMIN' ? 'bg-purple-500/10 text-purple-400' :
+                            <div className={`p-2 lg:p-3 rounded-xl ${user.role === 'ADMIN' ? 'bg-purple-500/10 text-purple-400' :
                                 user.role === 'STOCK_MANAGER' ? 'bg-blue-500/10 text-blue-400' :
                                     'bg-green-500/10 text-green-400'
                                 }`}>
-                                {user.role === 'ADMIN' ? <Shield size={24} /> : <User size={24} />}
+                                {user.role === 'ADMIN' ? <Shield size={20} className="lg:w-6 lg:h-6" /> : <User size={20} className="lg:w-6 lg:h-6" />}
                             </div>
-                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex gap-1 lg:gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                                 <button onClick={() => openEdit(user)} className="p-2 hover:bg-white/10 rounded">
                                     <Edit2 size={16} className="text-slate-400" />
                                 </button>
@@ -126,8 +126,8 @@ export default function UsersPage() {
                                 </button>
                             </div>
                         </div>
-                        <h3 className="text-lg font-bold text-white mb-1">{user.name}</h3>
-                        <p className="text-sm text-slate-400 mb-4">@{user.username}</p>
+                        <h3 className="text-base lg:text-lg font-bold text-white mb-1">{user.name}</h3>
+                        <p className="text-xs lg:text-sm text-slate-400 mb-4">@{user.username}</p>
 
                         <div className="flex items-center justify-between pt-4 border-t border-white/5">
                             <span className="text-xs px-2 py-1 rounded bg-white/5 text-slate-300">

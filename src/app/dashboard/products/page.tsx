@@ -161,7 +161,7 @@ export default function ProductsPage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
                         Product Catalogue
@@ -169,18 +169,18 @@ export default function ProductsPage() {
                     <p className="text-sm text-slate-400">Manage your inventory items</p>
                 </div>
                 {canManageStock && (
-                    <Button onClick={() => { resetForm(); setIsAddModalOpen(true) }}>
+                    <Button onClick={() => { resetForm(); setIsAddModalOpen(true) }} className="w-full sm:w-auto">
                         <Plus size={18} /> Add Product
                     </Button>
                 )}
             </div>
 
             {/* Filters */}
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-4">
                 <Card className="flex-1 p-3 flex items-center gap-3">
                     <Search className="text-slate-400" size={20} />
                     <input
-                        className="bg-transparent border-none outline-none text-white w-full placeholder:text-slate-500"
+                        className="bg-transparent border-none outline-none text-white w-full placeholder:text-slate-500 text-sm"
                         placeholder="Search by name, barcode..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
