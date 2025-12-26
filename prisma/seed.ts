@@ -35,8 +35,7 @@ async function main() {
     }
   })
 
-<<<<<<< HEAD
-=======
+
   const stockManager = await prisma.user.create({
     data: {
       username: 'manager',
@@ -47,7 +46,6 @@ async function main() {
     }
   })
 
->>>>>>> b46e104 (Add .gitignore and remove node_modules)
   // Dummy Products (Kerala)
   const products = [
     { name: 'Matta Rice (Jaya)', barcode: '8901234001', category: 'Grains', unit: 'kg', costPrice: 42.00, sellingPrice: 55.00, taxPercent: 0 },
