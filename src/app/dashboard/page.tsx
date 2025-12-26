@@ -100,9 +100,28 @@ export default function DashboardPage() {
                 <Card>
                     <h3 className="text-lg font-semibold mb-4">Top Products</h3>
                     <div className="space-y-3">
-                        <div className="p-4 text-center text-slate-500">
-                            No sales data available yet.
-                        </div>
+                        {isLoading ? (
+                            <div className="p-4 text-center text-slate-500">Loading Top Products...</div>
+                        ) : stats?.topProducts?.length > 0 ? (
+                            stats.topProducts.map((p: any, i: number) => (
+                                <div key={i} className="flex items-center justify-between p-2 rounded hover:bg-white/5 transition-colors">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-400">
+                                            {i + 1}
+                                        </div>
+                                        <div>
+                                            <p className="font-medium text-sm line-clamp-1">{p.name}</p>
+                                            <p className="text-xs text-slate-400">{p.sold} units sold</p>
+                                        </div>
+                                    </div>
+                                    <p className="font-bold text-green-400 text-sm">{formatCurrency(p.rev)}</p>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="p-4 text-center text-slate-500 text-sm border border-dashed border-slate-800 rounded">
+                                No sales data available yet.
+                            </div>
+                        )}
                     </div>
                 </Card>
             </div>

@@ -33,11 +33,16 @@ export async function GET() {
         _sum: { totalAmount: true }
     })
 
-    // 3. Low Stock (MVP: Products with batches expiring soon or stock count but here just count products)
-    // Complex query: Find products where sum of batches < product.minStockLevel
-    // This is hard in prisma directly without raw query or iterating.
-    // Making a simpler rough check: just check products count for now, improve later.
-    const lowStockCount = 0
+    // 3. Low Stock Calculation
+    const productsWithBatches = await prisma.product.findMany({
+        where: { supermarketId },
+        include: { batches: true }
+    })
+
+    const lowStockCount = productsWithBatches.filter((p: any) => {
+        const totalStock = p.batches.reduce((sum: number, b: any) => sum + b.quantity, 0)
+        return totalStock < p.minStockLevel
+    }).length
 
     // 4. Sales Monthly
     const startOfMonth = new Date()
@@ -53,37 +58,51 @@ export async function GET() {
     startOfWeek.setDate(startOfWeek.getDate() - 6)
     startOfWeek.setHours(0, 0, 0, 0)
 
-    const weeklySales = await prisma.sale.findMany({
+    const recentSales = await prisma.sale.findMany({
         where: {
             supermarketId,
             date: { gte: startOfWeek }
         },
-        select: {
-            date: true,
-            totalAmount: true
-        }
+        include: { items: { include: { product: true } } }
     })
 
-    // Group by Day
+    // Group by Day for chart
     const chartData = []
     for (let i = 0; i < 7; i++) {
         const d = new Date(startOfWeek)
         d.setDate(d.getDate() + i)
-        const dayName = d.toLocaleDateString('en-US', { weekday: 'short' }) // Mon, Tue
         const dayStr = d.toISOString().split('T')[0]
+        const dayName = d.toLocaleDateString('en-US', { weekday: 'short' })
 
-        const total = weeklySales
+        const total = recentSales
             .filter(s => s.date.toISOString().startsWith(dayStr))
             .reduce((acc, curr) => acc + Number(curr.totalAmount), 0)
 
         chartData.push({ name: dayName, total })
     }
 
+    // 6. Top Products
+    const productStats: any = {}
+    recentSales.forEach((sale: any) => {
+        sale.items.forEach((item: any) => {
+            if (!productStats[item.productId]) {
+                productStats[item.productId] = { name: item.product.name, sold: 0, rev: 0 }
+            }
+            productStats[item.productId].sold += item.quantity
+            productStats[item.productId].rev += Number(item.total)
+        })
+    })
+
+    const topProducts = Object.values(productStats)
+        .sort((a: any, b: any) => b.rev - a.rev)
+        .slice(0, 5)
+
     return NextResponse.json({
         products: productsCount,
         salesToday: Number(salesToday._sum.totalAmount || 0),
         monthlySales: Number(monthlySales._sum.totalAmount || 0),
         lowStock: lowStockCount,
-        chartData
+        chartData,
+        topProducts
     })
 }
