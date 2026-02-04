@@ -101,27 +101,27 @@ export default function DashboardPage() {
                     <h3 className="text-lg font-semibold mb-4">Top Products</h3>
                     <div className="space-y-3">
                         {isLoading ? (
-                            <div className="p-4 text-center text-slate-500">Loading Top Products...</div>
-                        ) : stats?.topProducts?.length > 0 ? (
-                            stats.topProducts.map((p: any, i: number) => (
-                                <div key={i} className="flex items-center justify-between p-2 rounded hover:bg-white/5 transition-colors">
+                            <div className="p-4 text-center text-slate-500">Loading...</div>
+                        ) : (stats?.topProducts?.length === 0 ? (
+                            <div className="p-4 text-center text-slate-500">
+                                No sales data available yet.
+                            </div>
+                        ) : (
+                            stats?.topProducts?.map((item: any, i: number) => (
+                                <div key={i} className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-400">
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${['bg-orange-500', 'bg-slate-600', 'bg-slate-700'][Math.min(i, 2)] || 'bg-slate-700'}`}>
                                             {i + 1}
                                         </div>
                                         <div>
-                                            <p className="font-medium text-sm line-clamp-1">{p.name}</p>
-                                            <p className="text-xs text-slate-400">{p.sold} units sold</p>
+                                            <p className="font-medium text-sm">{item.name}</p>
+                                            <p className="text-xs text-slate-500">{item.quantity} {item.unit} sold</p>
                                         </div>
                                     </div>
-                                    <p className="font-bold text-green-400 text-sm">{formatCurrency(p.rev)}</p>
+                                    <span className="font-mono font-bold text-green-400">{formatCurrency(item.value)}</span>
                                 </div>
                             ))
-                        ) : (
-                            <div className="p-4 text-center text-slate-500 text-sm border border-dashed border-slate-800 rounded">
-                                No sales data available yet.
-                            </div>
-                        )}
+                        ))}
                     </div>
                 </Card>
             </div>

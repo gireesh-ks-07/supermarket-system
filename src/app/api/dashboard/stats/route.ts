@@ -33,15 +33,20 @@ export async function GET() {
         _sum: { totalAmount: true }
     })
 
-    // 3. Low Stock Calculation
-    const productsWithBatches = await prisma.product.findMany({
-        where: { supermarketId },
-        include: { batches: true }
+    // 3. Low Stock 
+    // Fetch all products with their batches to calculate current stock
+    const products = await prisma.product.findMany({
+        where: { supermarketId, isActive: true },
+        select: {
+            id: true,
+            minStockLevel: true,
+            batches: { select: { quantity: true, expiryDate: true } }
+        }
     })
 
-    const lowStockCount = productsWithBatches.filter((p: any) => {
-        const totalStock = p.batches.reduce((sum: number, b: any) => sum + b.quantity, 0)
-        return totalStock < p.minStockLevel
+    const lowStockCount = products.filter(p => {
+        const totalStock = p.batches.reduce((sum, b) => sum + b.quantity, 0)
+        return totalStock <= p.minStockLevel
     }).length
 
     // 4. Sales Monthly
@@ -53,49 +58,73 @@ export async function GET() {
         _sum: { totalAmount: true }
     })
 
-    // 5. Weekly Chart Data
+    // 5. Weekly Chart Data (Last 7 Days)
     const startOfWeek = new Date()
     startOfWeek.setDate(startOfWeek.getDate() - 6)
     startOfWeek.setHours(0, 0, 0, 0)
 
-    const recentSales = await prisma.sale.findMany({
+    // Using group by raw or just JS processing. JS is safer for cross-db compatibility in MVP.
+    const weeklySales = await prisma.sale.findMany({
         where: {
             supermarketId,
             date: { gte: startOfWeek }
         },
-        include: { items: { include: { product: true } } }
+        select: {
+            date: true,
+            totalAmount: true
+        }
     })
 
-    // Group by Day for chart
     const chartData = []
     for (let i = 0; i < 7; i++) {
         const d = new Date(startOfWeek)
         d.setDate(d.getDate() + i)
-        const dayStr = d.toISOString().split('T')[0]
+        // Format: Mon, Tue
         const dayName = d.toLocaleDateString('en-US', { weekday: 'short' })
+        const dayKey = d.toDateString()
 
-        const total = recentSales
-            .filter(s => s.date.toISOString().startsWith(dayStr))
+        const total = weeklySales
+            .filter(s => {
+                const sDate = new Date(s.date).toDateString()
+                return sDate === dayKey
+            })
             .reduce((acc, curr) => acc + Number(curr.totalAmount), 0)
 
         chartData.push({ name: dayName, total })
     }
 
     // 6. Top Products
-    const productStats: any = {}
-    recentSales.forEach((sale: any) => {
-        sale.items.forEach((item: any) => {
-            if (!productStats[item.productId]) {
-                productStats[item.productId] = { name: item.product.name, sold: 0, rev: 0 }
+    // Get top 5 selling products by total revenue
+    const topSellingItems = await prisma.saleItem.groupBy({
+        by: ['productId'],
+        where: {
+            sale: { supermarketId } // Ensure we only count this supermarket's sales
+        },
+        _sum: {
+            total: true,
+            quantity: true
+        },
+        orderBy: {
+            _sum: {
+                total: 'desc'
             }
-            productStats[item.productId].sold += item.quantity
-            productStats[item.productId].rev += Number(item.total)
-        })
+        },
+        take: 5
     })
 
-    const topProducts = Object.values(productStats)
-        .sort((a: any, b: any) => b.rev - a.rev)
-        .slice(0, 5)
+    // Enrich with Product Name
+    const topProducts = await Promise.all(topSellingItems.map(async (item) => {
+        const product = await prisma.product.findUnique({
+            where: { id: item.productId },
+            select: { name: true, unit: true }
+        })
+        return {
+            name: product?.name || 'Unknown',
+            value: Number(item._sum.total || 0),
+            quantity: item._sum.quantity,
+            unit: product?.unit
+        }
+    }))
 
     return NextResponse.json({
         products: productsCount,

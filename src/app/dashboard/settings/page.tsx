@@ -138,7 +138,7 @@ export default function SettingsPage() {
                         </div>
                         <div>
                             <p className="text-xs text-slate-500 mb-1">Database</p>
-                            <p className="text-sm font-mono text-blue-400">PostgreSQL</p>
+                            <p className="text-sm font-mono text-blue-400">SQLite</p>
                         </div>
                     </div>
                 </Card>

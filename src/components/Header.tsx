@@ -18,10 +18,14 @@ type Notification = {
 
 const fetcher = (url: string) => fetch(url).then(r => r.json())
 
-export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
+interface HeaderProps {
+    onMenuClick?: () => void
+}
+
+export default function Header({ onMenuClick }: HeaderProps) {
     const router = useRouter()
     const { user } = useUser()
-    const { data: notifications } = useSWR<Notification[]>('/api/notifications', fetcher, { refreshInterval: 60000 })
+    const { data: notifications } = useSWR<Notification[]>('/api/notifications', fetcher, { refreshInterval: 60000 }) // Poll every minute
     const [isOpen, setIsOpen] = useState(false)
 
     const handleLogout = async () => {
@@ -30,6 +34,7 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
     }
 
     const handleNotificationClick = async (n: Notification) => {
+        // Mark as read
         await fetch('/api/notifications', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -49,18 +54,22 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
     }
 
     return (
-        <header className="h-16 flex items-center justify-between px-4 lg:px-6 glass-panel m-4 mb-0 rounded-2xl relative z-40">
+        <header className="h-16 flex items-center justify-between px-4 md:px-6 glass-panel m-2 md:m-4 md:mb-0 rounded-2xl relative z-40">
             <div className="flex items-center gap-4">
                 <button
                     onClick={onMenuClick}
-                    className="lg:hidden p-2 text-slate-400 hover:text-white transition-colors"
+                    className="md:hidden p-2 text-slate-400 hover:text-white"
                 >
-                    <Menu size={20} />
+                    <Menu size={24} />
                 </button>
-                <span className="text-sm text-slate-400 hidden sm:inline">Welcome back, <span className="text-white font-medium">{user?.name}</span></span>
+                <div className="flex flex-col">
+                    <span className="text-xs text-slate-400">Welcome back,</span>
+                    <span className="text-sm font-medium text-white line-clamp-1">{user?.name}</span>
+                </div>
             </div>
 
             <div className="flex items-center gap-4">
+                {/* Notifications */}
                 <div className="relative">
                     <button
                         onClick={() => setIsOpen(!isOpen)}
@@ -72,6 +81,7 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
                         )}
                     </button>
 
+                    {/* Dropdown */}
                     {isOpen && (
                         <div className="absolute top-full right-0 mt-2 w-80 bg-[#1a1c23] border border-white/10 rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
                             <div className="p-3 border-b border-white/5 flex justify-between items-center bg-white/5">
@@ -109,7 +119,9 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
                     )}
                 </div>
 
+                {/* Overlay to close when clicking outside */}
                 {isOpen && <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />}
+
 
                 <div className="h-8 w-[1px] bg-white/10" />
 
@@ -118,7 +130,7 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
                         {user?.name?.[0] || 'U'}
                     </div>
                     <Button variant="secondary" onClick={handleLogout} className="text-xs py-1 px-3 h-8">
-                        <LogOut size={14} className="sm:mr-1" /> <span className="hidden sm:inline">Logout</span>
+                        <LogOut size={14} className="mr-1" /> Logout
                     </Button>
                 </div>
             </div>

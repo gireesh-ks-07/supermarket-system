@@ -5,7 +5,7 @@ import useSWR, { mutate } from 'swr'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Truck, Plus, Search, Archive, AlertTriangle, User, X, Trash2, Edit2, Pause, Play } from 'lucide-react'
+import { Truck, Plus, Search, Archive, AlertTriangle, User, X, Trash2, Edit2, Pause, Play, Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { formatCurrency } from '@/lib/utils'
@@ -51,22 +51,22 @@ export default function StockPage() {
                     </h1>
                     <p className="text-sm text-slate-400">Manage inventory flow and vendor relationships</p>
                 </div>
-                <div className="flex bg-slate-900/50 p-1 rounded-lg border border-slate-800 overflow-x-auto no-scrollbar">
+                <div className="flex bg-slate-900/50 p-1 rounded-lg border border-slate-800">
                     <button
                         onClick={() => setView('inventory')}
-                        className={`px-3 lg:px-4 py-2 rounded-md text-xs lg:text-sm font-medium transition-all whitespace-nowrap ${view === 'inventory' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${view === 'inventory' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}
                     >
                         Inventory & Batches
                     </button>
                     <button
                         onClick={() => setView('suppliers')}
-                        className={`px-3 lg:px-4 py-2 rounded-md text-xs lg:text-sm font-medium transition-all whitespace-nowrap ${view === 'suppliers' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${view === 'suppliers' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}
                     >
                         Supplier Directory
                     </button>
                     <button
                         onClick={() => setView('purchases')}
-                        className={`px-3 lg:px-4 py-2 rounded-md text-xs lg:text-sm font-medium transition-all whitespace-nowrap ${view === 'purchases' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${view === 'purchases' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}
                     >
                         Purchase Orders
                     </button>
@@ -149,9 +149,43 @@ function InventoryView() {
 
     const lowStock = batches?.filter(b => b.quantity < 10).length || 0
 
+    const handleDownloadLowStockCSV = () => {
+        const lowStockBatches = batches?.filter(b => b.quantity < 10) || []
+        if (lowStockBatches.length === 0) {
+            toast.error("No low stock batches found")
+            return
+        }
+
+        const csvRows = [
+            ['Batch ID', 'Product Name', 'Current Quantity', 'Unit', 'Expiry Date']
+        ]
+
+        lowStockBatches.forEach(batch => {
+            csvRows.push([
+                batch.batchNumber,
+                batch.product.name,
+                batch.quantity.toString(),
+                batch.product.unit,
+                batch.expiryDate ? new Date(batch.expiryDate).toLocaleDateString() : 'N/A'
+            ])
+        })
+
+        const csvContent = "data:text/csv;charset=utf-8,"
+            + csvRows.map(row => row.map(cell => `"${cell}"`).join(",")).join("\n")
+
+        const encodedUri = encodeURI(csvContent)
+        const link = document.createElement("a")
+        link.setAttribute("href", encodedUri)
+        link.setAttribute("download", `low_stock_report_${new Date().toISOString().split('T')[0]}.csv`)
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        toast.success("Low stock report downloaded")
+    }
+
     return (
         <div className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-4 gap-4">
                 <Card className="p-4 flex items-center justify-between bg-emerald-500/5 border-emerald-500/20">
                     <div>
                         <p className="text-emerald-400 text-sm font-medium">Total Batches</p>
@@ -179,25 +213,35 @@ function InventoryView() {
             </div>
 
             <Card className="p-0 overflow-hidden min-h-[400px]">
-                <div className="p-4 border-b border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div className="relative w-full sm:w-64">
+                <div className="p-4 border-b border-white/5 flex flex-wrap gap-4 justify-between items-center">
+                    <div className="relative w-64">
                         <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
                         <input
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-700 rounded pl-9 pr-3 py-2 text-sm text-white focus:border-purple-500/50 outline-none transition-colors"
+                            className="w-full bg-slate-900 border border-slate-700 rounded pl-9 pr-3 py-2 text-sm text-white focus:border-purple-500 transition-colors outline-none"
                             placeholder="Search batch or product..."
                         />
                     </div>
-                    {canManageStock && (
-                        <Button onClick={() => {
-                            setEditBatchId(null)
-                            setFormData({ productId: '', batchNumber: '', quantity: '1', expiryDate: '' })
-                            setIsAddModalOpen(true)
-                        }} className="w-full sm:w-auto">
-                            <Plus size={16} /> Add New Stock
+                    <div className="flex gap-2">
+                        <Button
+                            variant="secondary"
+                            onClick={handleDownloadLowStockCSV}
+                            disabled={lowStock === 0}
+                            className="text-xs sm:text-sm"
+                        >
+                            <Download size={16} className="mr-2" /> Low Stock CSV
                         </Button>
-                    )}
+                        {canManageStock && (
+                            <Button onClick={() => {
+                                setEditBatchId(null)
+                                setFormData({ productId: '', batchNumber: '', quantity: '1', expiryDate: '' })
+                                setIsAddModalOpen(true)
+                            }}>
+                                <Plus size={16} className="mr-2" /> Add New Stock
+                            </Button>
+                        )}
+                    </div>
                 </div>
                 {
                     isLoading ? (
@@ -228,11 +272,13 @@ function InventoryView() {
                                                 {item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'}
                                             </td>
                                             <td className="p-4 text-center">
-                                                {item.quantity < 10 ? (
-                                                    <span className="text-xs bg-red-500/10 text-red-400 px-2 py-1 rounded">Low Stock</span>
-                                                ) : (
-                                                    <span className="text-xs bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded">In Stock</span>
-                                                )}
+                                                {(() => {
+                                                    const isExpired = item.expiryDate && new Date(item.expiryDate) < new Date()
+                                                    if (item.quantity <= 0) return <span className="text-xs bg-slate-500/10 text-slate-400 px-3 py-1 rounded-full border border-slate-500/20">Out of Stock</span>
+                                                    if (isExpired) return <span className="text-xs bg-red-500/10 text-red-500 px-3 py-1 rounded-full border border-red-500/20 font-bold">Expired</span>
+                                                    if (item.quantity < 10) return <span className="text-xs bg-yellow-500/10 text-yellow-400 px-3 py-1 rounded-full border border-yellow-500/20">Low Stock</span>
+                                                    return <span className="text-xs bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20">In Stock</span>
+                                                })()}
                                             </td>
                                             {canManageStock && (
                                                 <td className="p-4 text-right">
@@ -442,10 +488,10 @@ function SuppliersView({ onViewOrders }: { onViewOrders: (id: string) => void })
     return (
         <React.Fragment>
             <Card className="p-0 overflow-hidden min-h-[400px]">
-                <div className="p-4 border-b border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <h3 className="font-bold text-white text-lg">Registered Suppliers</h3>
+                <div className="p-4 border-b border-white/5 flex justify-between items-center">
+                    <h3 className="font-bold text-white">Registered Suppliers</h3>
                     {canManageStock && (
-                        <Button onClick={() => { setEditingId(null); setFormData({ name: '', phone: '', address: '', gstNumber: '' }); setIsAddModalOpen(true); }} variant="secondary" className="w-full sm:w-auto border-dashed border-slate-600 text-slate-400 hover:text-white hover:border-white">
+                        <Button onClick={() => { setEditingId(null); setFormData({ name: '', phone: '', address: '', gstNumber: '' }); setIsAddModalOpen(true); }} variant="secondary" className="border-dashed border-slate-600 text-slate-400 hover:text-white hover:border-white">
                             <Plus size={16} /> Add New Supplier
                         </Button>
                     )}
@@ -696,18 +742,18 @@ function PurchasesView({ filterSupplierId, clearFilter }: { filterSupplierId: st
     return (
         <React.Fragment>
             <Card className="p-0 overflow-hidden min-h-[400px]">
-                <div className="p-4 border-b border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div className="flex flex-wrap items-center gap-2 lg:gap-4">
-                        <h3 className="font-bold text-white text-lg">Purchase Orders</h3>
+                <div className="p-4 border-b border-white/5 flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                        <h3 className="font-bold text-white">Purchase Orders</h3>
                         {filterSupplierId && (
-                            <span className="flex items-center gap-2 px-2 py-1 text-[10px] sm:text-xs rounded bg-blue-500/20 text-blue-400">
+                            <span className="flex items-center gap-2 px-2 py-1 text-xs rounded bg-blue-500/20 text-blue-400">
                                 Filtered by Supplier
                                 <button onClick={clearFilter} className="hover:text-white"><X size={12} /></button>
                             </span>
                         )}
                     </div>
                     {canManageStock && (
-                        <Button onClick={() => setIsAddModalOpen(true)} className="w-full sm:w-auto">
+                        <Button onClick={() => setIsAddModalOpen(true)}>
                             <Plus size={16} /> New Purchase Order
                         </Button>
                     )}

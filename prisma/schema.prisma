@@ -25,6 +25,7 @@ model Supermarket {
   sales     Sale[]
   purchases Purchase[]
   customers Customer[]
+  payments  Payment[]
   notifications Notification[]
 }
 
@@ -199,8 +200,24 @@ model Customer {
   
   name          String?
   phone         String?
+  flatNumber    String?
   
   sales         Sale[]
+  payments      Payment[]
 
   @@unique([supermarketId, phone])
+}
+
+model Payment {
+  id            String      @id @default(uuid())
+  supermarketId String
+  supermarket   Supermarket @relation(fields: [supermarketId], references: [id])
+  
+  customerId    String
+  customer      Customer    @relation(fields: [customerId], references: [id])
+  
+  amount        Decimal
+  date          DateTime    @default(now())
+  note          String?
+  type          String      @default("CREDIT_PAYMENT")
 }

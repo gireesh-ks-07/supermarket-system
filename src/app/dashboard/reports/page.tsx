@@ -4,208 +4,593 @@ import React, { useState } from 'react'
 import useSWR from 'swr'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input' // Assuming Input component exists
 import {
     BarChart3, Calendar, TrendingUp, DollarSign,
     CreditCard, ShoppingBag, ArrowUpRight, ArrowDownRight,
-    Loader2, Download
+    Search, FileText
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 
-const fetcher = (url: string) => fetch(url).then(r => r.json())
-
 export default function ReportsPage() {
+    const [activeTab, setActiveTab] = useState<'business' | 'credit'>('business')
     const [period, setPeriod] = useState('weekly')
-    const { data, isLoading, error } = useSWR(`/api/reports?period=${period}`, fetcher)
+    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
 
-    if (error) return <div className="p-8 text-center text-red-400">Failed to load reports</div>
+    const { data: businessData, isLoading: businessLoading } = useSWR(
+        activeTab === 'business' ? `/api/reports/business?period=${period}&date=${selectedDate}` : null,
+        (url: string) => fetch(url).then(res => res.json())
+    )
 
-    const kpis = data?.kpis || { totalRevenue: 0, totalSales: 0, digitalPercent: 0, avgOrderValue: 0, revenueGrowth: 0 }
-    const chartData = data?.chartData || []
-    const topProducts = data?.topProducts || []
-    const maxSale = chartData.length > 0 ? Math.max(...chartData.map((d: any) => d.sales)) : 1
+    // Credit Report State
+    const [flatNumber, setFlatNumber] = useState('')
+    const [filterType, setFilterType] = useState('month') // date, month, year
+    const [filterValue, setFilterValue] = useState(new Date().toISOString().slice(0, 7)) // Default current month YYYY-MM
+    const [reportData, setReportData] = useState<any>(null)
+    const [loading, setLoading] = useState(false)
+    const [showPaymentModal, setShowPaymentModal] = useState(false)
+    const [paymentAmount, setPaymentAmount] = useState('')
+    const [paymentNote, setPaymentNote] = useState('')
+    const [submittingPayment, setSubmittingPayment] = useState(false)
+    const [availableFlats, setAvailableFlats] = useState<string[]>([])
+
+    React.useEffect(() => {
+        if (activeTab === 'credit') {
+            fetch('/api/customers/flats')
+                .then(res => res.json())
+                .then(data => {
+                    if (Array.isArray(data)) setAvailableFlats(data)
+                })
+                .catch(err => console.error('Failed to fetch flats', err))
+        }
+    }, [activeTab])
+
+    const fetchCreditReport = async () => {
+        if (!flatNumber) {
+            alert('Please enter a Flat Number')
+            return
+        }
+        setLoading(true)
+        setReportData(null)
+        try {
+            const res = await fetch(`/api/reports/flat-sales?flatNumber=${flatNumber.trim()}&filter=${filterType}&value=${filterValue}`)
+            const data = await res.json()
+
+            if (!res.ok) {
+                if (res.status === 401) alert('Session expired. Please login again.')
+                else alert(data.error || 'Failed to fetch report')
+                return
+            }
+
+            setReportData(data)
+        } catch (e: any) {
+            console.error(e)
+            alert(e.message || 'Failed to fetch report')
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handlePayment = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!paymentAmount || Number(paymentAmount) <= 0) return
+
+        setSubmittingPayment(true)
+        try {
+            const res = await fetch('/api/payments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    customerId: reportData.customer.id,
+                    amount: Number(paymentAmount),
+                    note: paymentNote
+                })
+            })
+
+            if (res.ok) {
+                alert('Payment Recorded Successfully')
+                setShowPaymentModal(false)
+                setPaymentAmount('')
+                setPaymentNote('')
+                fetchCreditReport() // Refresh data
+            } else {
+                alert('Failed to record payment')
+            }
+        } catch (e) {
+            alert('Error recording payment')
+        } finally {
+            setSubmittingPayment(false)
+        }
+    }
+
+    const handleDownloadCSV = () => {
+        if (!businessData) return
+
+        const csvRows = []
+
+        // Header
+        csvRows.push(['Business Report', `Period: ${period.toUpperCase()}`])
+        csvRows.push(['Generated At', new Date().toLocaleString()])
+        csvRows.push([])
+
+        // Summary
+        csvRows.push(['Summary Metrics'])
+        csvRows.push(['Total Revenue', businessData.revenue])
+        csvRows.push(['Total Sales Count', businessData.salesCount])
+        csvRows.push([])
+
+        // Payment Breakdown
+        csvRows.push(['Payment Analysis'])
+        csvRows.push(['Payment Mode', 'Amount'])
+        businessData.paymentStats?.forEach((p: any) => {
+            csvRows.push([p.mode, p.amount])
+        })
+        csvRows.push([])
+
+        // Top Products
+        csvRows.push(['Top Selling Products'])
+        csvRows.push(['Product Name', 'Quantity Sold', 'Revenue'])
+        businessData.topProducts?.forEach((p: any) => {
+            csvRows.push([p.name, p.quantity, p.value])
+        })
+        csvRows.push([])
+
+        // Timeline Data
+        csvRows.push(['Sales Trend'])
+        csvRows.push(['Time Label', 'Sales Amount'])
+        businessData.chartData?.forEach((d: any) => {
+            csvRows.push([d.label, d.value])
+        })
+
+        const csvContent = "data:text/csv;charset=utf-8,"
+            + csvRows.map(row => row.map(cell => `"${cell}"`).join(",")).join("\n")
+
+        const encodedUri = encodeURI(csvContent)
+        const link = document.createElement("a")
+        link.setAttribute("href", encodedUri)
+        link.setAttribute("download", `business_report_${period}_${new Date().toISOString().split('T')[0]}.csv`)
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+    }
+
+    // const maxSale = Math.max(...SALES_DATA.map(d => d.sales)) // Deprecated
+
+    const transactions = reportData ? [
+        ...reportData.sales.map((s: any) => ({ ...s, type: 'SALE', amount: Number(s.totalAmount) })),
+        ...(reportData.payments || []).map((p: any) => ({ ...p, type: 'PAYMENT', invoiceNumber: 'PAYMENT', paymentMode: p.type || 'PAYMENT', items: [], amount: Number(p.amount) }))
+    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) : []
 
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
                         Analytics & Reports
                     </h1>
                     <p className="text-sm text-slate-400">Financial insights and performance metrics</p>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                    <Card className="flex items-center gap-2 p-1 bg-slate-900/50 border-slate-800">
+                <div className="flex gap-2">
+                    <Button
+                        variant={activeTab === 'business' ? undefined : 'secondary'}
+                        onClick={() => setActiveTab('business')}
+                    >
+                        <BarChart3 className="mr-2" size={16} /> Business Overview
+                    </Button>
+                    <Button
+                        variant={activeTab === 'credit' ? undefined : 'secondary'}
+                        onClick={() => setActiveTab('credit')}
+                    >
+                        <CreditCard className="mr-2" size={16} /> Credit / Flat Reports
+                    </Button>
+                </div>
+            </div>
+
+            {activeTab === 'business' ? (
+                <>
+                    <Card className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-900/80 border-slate-800/50 w-fit mb-6 backdrop-blur-sm">
                         {['daily', 'weekly', 'monthly'].map((p) => (
                             <button
                                 key={p}
                                 onClick={() => setPeriod(p)}
-                                className={`px-4 py-1.5 rounded text-sm font-medium transition-all ${period === p
-                                    ? 'bg-white/10 text-white shadow-sm'
-                                    : 'text-slate-500 hover:text-slate-300'
+                                className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 ${period === p
+                                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg shadow-purple-900/30'
+                                    : 'text-slate-400 hover:text-white hover:bg-white/5'
                                     }`}
                             >
                                 {p.charAt(0).toUpperCase() + p.slice(1)}
                             </button>
                         ))}
+
+                        <div className="w-px h-6 bg-white/10 mx-1 hidden sm:block"></div>
+
+                        <div className={`relative flex items-center gap-2 px-4 py-2 rounded-md transition-all duration-300 border-2 ${period === 'custom'
+                                ? 'bg-purple-500/15 border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.2)]'
+                                : 'border-white/5 hover:border-white/10 hover:bg-white/5'
+                            }`}>
+                            <Calendar size={16} className={period === 'custom' ? "text-purple-400 scroll-pulse" : "text-slate-500"} />
+                            <input
+                                type="date"
+                                value={selectedDate}
+                                onChange={(e) => {
+                                    setSelectedDate(e.target.value)
+                                    setPeriod('custom')
+                                }}
+                                className={`bg-transparent border-none text-sm focus:ring-0 outline-none [color-scheme:dark] cursor-pointer font-semibold tracking-tight ${period === 'custom' ? 'text-white' : 'text-slate-400'
+                                    }`}
+                            />
+                        </div>
                     </Card>
-                    <Button variant="secondary" className="flex items-center gap-2">
-                        <Download size={16} /> Export
-                    </Button>
-                </div>
-            </div>
 
-            {/* KPI Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card className="p-4 space-y-2 relative overflow-hidden group">
-                    <div className="flex justify-between items-start relative z-10">
-                        <div className="p-2 rounded bg-green-500/10 text-green-400">
-                            <DollarSign size={20} />
-                        </div>
-                        <span className={`flex items-center text-xs px-1.5 py-0.5 rounded ${kpis.revenueGrowth >= 0 ? 'text-green-400 bg-green-500/10' : 'text-red-400 bg-red-500/10'}`}>
-                            {kpis.revenueGrowth >= 0 ? '+' : ''}{kpis.revenueGrowth.toFixed(1)}%
-                            {kpis.revenueGrowth >= 0 ? <ArrowUpRight size={12} className="ml-1" /> : <ArrowDownRight size={12} className="ml-1" />}
-                        </span>
-                    </div>
-                    <div className="relative z-10">
-                        <p className="text-slate-400 text-sm">Total Revenue</p>
-                        <h3 className="text-2xl font-bold text-white">
-                            {isLoading ? <Loader2 className="animate-spin" size={20} /> : formatCurrency(kpis.totalRevenue)}
-                        </h3>
-                    </div>
-                    <div className="absolute -right-4 -bottom-4 text-green-500/5 group-hover:text-green-500/10 transition-colors">
-                        <DollarSign size={80} />
-                    </div>
-                </Card>
-
-                <Card className="p-4 space-y-2 relative overflow-hidden group">
-                    <div className="flex justify-between items-start relative z-10">
-                        <div className="p-2 rounded bg-blue-500/10 text-blue-400">
-                            <ShoppingBag size={20} />
-                        </div>
-                    </div>
-                    <div className="relative z-10">
-                        <p className="text-slate-400 text-sm">Total Orders</p>
-                        <h3 className="text-2xl font-bold text-white">
-                            {isLoading ? <Loader2 className="animate-spin" size={20} /> : kpis.totalSales}
-                        </h3>
-                    </div>
-                    <div className="absolute -right-4 -bottom-4 text-blue-500/5 group-hover:text-blue-500/10 transition-colors">
-                        <ShoppingBag size={80} />
-                    </div>
-                </Card>
-
-                <Card className="p-4 space-y-2 relative overflow-hidden group">
-                    <div className="flex justify-between items-start relative z-10">
-                        <div className="p-2 rounded bg-purple-500/10 text-purple-400">
-                            <CreditCard size={20} />
-                        </div>
-                    </div>
-                    <div className="relative z-10">
-                        <p className="text-slate-400 text-sm">Digital Payments</p>
-                        <h3 className="text-2xl font-bold text-white">
-                            {isLoading ? <Loader2 className="animate-spin" size={20} /> : `${kpis.digitalPercent.toFixed(0)}%`}
-                        </h3>
-                    </div>
-                    <div className="absolute -right-4 -bottom-4 text-purple-500/5 group-hover:text-purple-500/10 transition-colors">
-                        <CreditCard size={80} />
-                    </div>
-                </Card>
-
-                <Card className="p-4 space-y-2 relative overflow-hidden group">
-                    <div className="flex justify-between items-start relative z-10">
-                        <div className="p-2 rounded bg-orange-500/10 text-orange-400">
-                            <TrendingUp size={20} />
-                        </div>
-                    </div>
-                    <div className="relative z-10">
-                        <p className="text-slate-400 text-sm">Avg. Order Value</p>
-                        <h3 className="text-2xl font-bold text-white">
-                            {isLoading ? <Loader2 className="animate-spin" size={20} /> : formatCurrency(kpis.avgOrderValue)}
-                        </h3>
-                    </div>
-                    <div className="absolute -right-4 -bottom-4 text-orange-500/5 group-hover:text-orange-500/10 transition-colors">
-                        <TrendingUp size={80} />
-                    </div>
-                </Card>
-            </div>
-
-            {/* Main Chart Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="lg:col-span-2 p-6">
-                    <div className="flex justify-between items-center mb-6">
-                        <h3 className="font-bold text-lg text-white">Revenue Overview</h3>
-                        <span className="text-xs text-slate-500">Sales Trend for requested period</span>
-                    </div>
-
-                    <div className="h-64 flex items-end justify-between gap-2">
-                        {isLoading ? (
-                            <div className="w-full h-full flex items-center justify-center text-slate-500">
-                                <Loader2 className="animate-spin" />
-                            </div>
-                        ) : chartData.length > 0 ? (
-                            chartData.map((d: any, idx: number) => (
-                                <div key={idx} className="flex-1 flex flex-col items-center gap-2 group">
-                                    <div
-                                        className="w-full bg-slate-800 rounded-t-sm relative group-hover:bg-purple-500/20 transition-all duration-500 overflow-hidden"
-                                        style={{ height: `${(d.sales / maxSale) * 100}%`, minHeight: d.sales > 0 ? '4px' : '0px' }}
-                                    >
-                                        <div className="absolute inset-0 bg-gradient-to-t from-purple-600/50 to-blue-500/50 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-purple-500" />
-                                        {/* Tooltip on hover */}
-                                        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full bg-slate-900 border border-slate-700 text-[10px] px-1.5 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-20">
-                                            {formatCurrency(d.sales)}
-                                        </div>
-                                    </div>
-                                    <span className="text-[10px] text-slate-500 font-medium group-hover:text-white transition-colors truncate w-full text-center">
-                                        {d.day}
-                                    </span>
+                    {/* KPI Grid */}
+                    <div className="grid grid-cols-4 gap-4">
+                        <Card className="p-4 space-y-2">
+                            <div className="flex justify-between items-start">
+                                <div className="p-2 rounded bg-green-500/10 text-green-400">
+                                    <DollarSign size={20} />
                                 </div>
-                            ))
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center text-slate-500 border border-dashed border-slate-800 rounded">
-                                No sales data found for this period
                             </div>
-                        )}
-                    </div>
-                </Card>
+                            <div>
+                                <p className="text-slate-400 text-sm">Total Revenue</p>
+                                <h3 className="text-2xl font-bold text-white">
+                                    {businessLoading ? '...' : formatCurrency(businessData?.revenue || 0)}
+                                </h3>
+                            </div>
+                        </Card>
 
-                {/* Top Products */}
-                <Card className="lg:col-span-1 p-0 overflow-hidden">
-                    <div className="p-4 border-b border-white/5 bg-white/5">
-                        <h3 className="font-bold text-white">Top Selling Products</h3>
-                    </div>
-                    <div className="divide-y divide-white/5">
-                        {isLoading ? (
-                            <div className="p-8 text-center text-slate-500">
-                                <Loader2 className="animate-spin mx-auto mb-2" />
-                                Calculating...
+                        <Card className="p-4 space-y-2">
+                            <div className="flex justify-between items-start">
+                                <div className="p-2 rounded bg-blue-500/10 text-blue-400">
+                                    <ShoppingBag size={20} />
+                                </div>
                             </div>
-                        ) : topProducts.length > 0 ? (
-                            topProducts.map((item: any, i: number) => (
-                                <div key={i} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-400">
-                                            {i + 1}
+                            <div>
+                                <p className="text-slate-400 text-sm">Total Sales</p>
+                                <h3 className="text-2xl font-bold text-white">
+                                    {businessLoading ? '...' : businessData?.salesCount || 0}
+                                </h3>
+                            </div>
+                        </Card>
+
+                        <Card className="p-4 space-y-2">
+                            <div className="flex justify-between items-start">
+                                <div className="p-2 rounded bg-purple-500/10 text-purple-400">
+                                    <CreditCard size={20} />
+                                </div>
+                                <span className="text-xs text-slate-500">UPI vs Cash</span>
+                            </div>
+                            <div>
+                                <p className="text-slate-400 text-sm">Digital Payments</p>
+                                <h3 className="text-2xl font-bold text-white">68%</h3>
+                            </div>
+                        </Card>
+
+                        <Card className="p-4 space-y-2">
+                            <div className="flex justify-between items-start">
+                                <div className="p-2 rounded bg-orange-500/10 text-orange-400">
+                                    <TrendingUp size={20} />
+                                </div>
+                                <span className="flex items-center text-xs text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded">
+                                    -2.4% <ArrowDownRight size={12} className="ml-1" />
+                                </span>
+                            </div>
+                            <div>
+                                <p className="text-slate-400 text-sm">Avg. Order Value</p>
+                                <h3 className="text-2xl font-bold text-white">{formatCurrency(42.50)}</h3>
+                            </div>
+                        </Card>
+                    </div>
+
+                    {/* Main Chart Section */}
+                    <div className="grid grid-cols-3 gap-6 mt-6">
+                        <Card className="col-span-2 p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="font-bold text-lg text-white">Revenue Overview</h3>
+                                <Button variant="secondary" className="text-xs h-8" onClick={handleDownloadCSV}>Download CSV</Button>
+                            </div>
+
+                            {/* Chart */}
+                            <div className="h-64 w-full flex items-end justify-between gap-2">
+                                {businessLoading ? (
+                                    <div className="w-full h-full flex items-center justify-center text-slate-500">Loading...</div>
+                                ) : (businessData?.chartData || []).map((d: any) => (
+                                    <div key={d.label} className="flex-1 flex flex-col items-center gap-2 group h-full justify-end">
+                                        <div
+                                            className="w-full bg-slate-800 rounded-t-sm relative group-hover:bg-purple-500/20 transition-all duration-500 overflow-hidden"
+                                            style={{ height: `${Math.max((d.value / (Math.max(...(businessData?.chartData?.map((x: any) => x.value) || [1])) || 1)) * 100, 2)}%` }}
+                                        >
+                                            <div className="absolute inset-0 bg-gradient-to-t from-purple-600/50 to-blue-500/50 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            <div className="absolute bottom-0 left-0 right-0 h-1 bg-purple-500" />
                                         </div>
+                                        <span className="text-xs text-slate-500 font-medium group-hover:text-white transition-colors truncate w-full text-center">
+                                            {d.label}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </Card>
+
+                        {/* Top Products */}
+                        <Card className="col-span-1 p-0 overflow-hidden">
+                            <div className="p-4 border-b border-white/5 bg-white/5">
+                                <h3 className="font-bold text-white">Top Selling Products</h3>
+                            </div>
+                            <div className="divide-y divide-white/5">
+                                {businessLoading ? (
+                                    <div className="p-4 text-center text-slate-500">Loading...</div>
+                                ) : (businessData?.topProducts || []).map((item: any, i: number) => (
+                                    <div key={i} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
                                         <div>
-                                            <p className="font-medium text-white text-sm line-clamp-1">{item.name}</p>
-                                            <p className="text-xs text-slate-500 font-mono">{item.sold} units sold</p>
+                                            <p className="font-medium text-white text-sm">{item.name}</p>
+                                            <p className="text-xs text-slate-500">{item.quantity} {item.unit} sold</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="font-bold text-green-400 text-sm">{formatCurrency(item.value)}</p>
                                         </div>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="font-bold text-green-400 text-sm">{formatCurrency(item.rev)}</p>
-                                    </div>
-                                </div>
-                            ))
-                        ) : (
-                            <div className="p-8 text-center text-slate-500 text-sm">
-                                No sales recorded yet.
+                                ))}
+                                {(!businessData?.topProducts || businessData.topProducts.length === 0) && !businessLoading && (
+                                    <div className="p-4 text-center text-slate-500">No data available</div>
+                                )}
                             </div>
-                        )}
+                        </Card>
                     </div>
-                </Card>
-            </div>
-        </div>
+
+                    {/* Payment Distribution */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+                        <Card className="col-span-1 p-6">
+                            <h3 className="font-bold text-lg text-white mb-6">Payment Method Breakdown</h3>
+                            <div className="space-y-4">
+                                {businessLoading ? (
+                                    <div className="text-center text-slate-500">Loading...</div>
+                                ) : (businessData?.paymentStats?.length > 0 ? (
+                                    businessData.paymentStats.map((stat: any, idx: number) => {
+                                        // Calculate percentage
+                                        const totalRev = businessData.paymentStats.reduce((a: any, b: any) => a + b.amount, 0) || 1
+                                        const percent = Math.round((stat.amount / totalRev) * 100)
+                                        return (
+                                            <div key={idx}>
+                                                <div className="flex justify-between text-sm mb-1">
+                                                    <span className="text-slate-300 font-medium">{stat.mode}</span>
+                                                    <span className="text-white font-bold">{formatCurrency(stat.amount)} ({percent}%)</span>
+                                                </div>
+                                                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                                                    <div
+                                                        className={`h-full rounded-full ${['bg-green-500', 'bg-purple-500', 'bg-blue-500'][idx % 3]}`}
+                                                        style={{ width: `${percent}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        )
+                                    })
+                                ) : (
+                                    <div className="text-center text-slate-500">No payment data available</div>
+                                ))}
+                            </div>
+                        </Card>
+
+                        <Card className="col-span-2 p-6 flex flex-col justify-center items-center text-slate-500 bg-white/5 border-dashed border-2 border-slate-700">
+                            <div className="p-4 rounded-full bg-slate-800/50 mb-4">
+                                <TrendingUp size={32} />
+                            </div>
+                            <p>Detailed Trends Analysis</p>
+                            <p className="text-xs mt-2">Advanced visualizations for payment trends over time will appear here.</p>
+                        </Card>
+                    </div>
+                </>
+            ) : (
+                <div className="space-y-6">
+                    <Card className="p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                            <div>
+                                <label className="block text-sm text-slate-400 mb-1">Flat Number</label>
+                                <select
+                                    value={flatNumber}
+                                    onChange={(e) => setFlatNumber(e.target.value)}
+                                    className="w-full h-10 px-3 rounded-md bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                >
+                                    <option value="" className="bg-slate-800">Select Flat</option>
+                                    {availableFlats.map(flat => (
+                                        <option key={flat} value={flat} className="bg-slate-800">{flat}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm text-slate-400 mb-1">Report Type</label>
+                                <select
+                                    className="w-full h-10 px-3 rounded-md bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    value={filterType}
+                                    onChange={(e) => setFilterType(e.target.value)}
+                                >
+                                    <option value="date" className="bg-slate-800">Daily</option>
+                                    <option value="month" className="bg-slate-800">Monthly</option>
+                                    <option value="year" className="bg-slate-800">Yearly</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm text-slate-400 mb-1">Select Date/Period</label>
+                                <Input
+                                    type={filterType === 'date' ? 'date' : filterType === 'month' ? 'month' : 'number'}
+                                    value={filterValue}
+                                    onChange={(e) => setFilterValue(e.target.value)}
+                                    className="bg-white/5 border-white/10 w-full h-10"
+                                    wrapperClassName="mb-0"
+                                    placeholder={filterType === 'year' ? 'YYYY' : ''}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-slate-400 mb-1 opacity-0">Action</label>
+                                <Button
+                                    className="bg-purple-600 hover:bg-purple-500 text-white w-full h-10"
+                                    onClick={fetchCreditReport}
+                                    disabled={loading}
+                                >
+                                    {loading ? 'Fetching...' : 'Show Report'}
+                                </Button>
+                            </div>
+                        </div>
+                    </Card>
+
+                    {
+                        reportData && (
+                            <div className="space-y-6 fade-in">
+                                {/* Summary */}
+                                {/* Summary */}
+                                <div className="grid grid-cols-3 gap-6">
+                                    <Card className="p-6 bg-gradient-to-br from-red-500/20 to-transparent border border-red-500/30 flex flex-col justify-between relative overflow-hidden">
+                                        <div>
+                                            <p className="text-red-400 mb-2 font-medium">Outstanding Balance</p>
+                                            <h2 className="text-4xl font-bold text-white">{formatCurrency(reportData.balance || 0)}</h2>
+                                            <p className="text-sm text-slate-400 mt-2">Flat: {reportData.customer?.flatNumber}</p>
+                                        </div>
+                                        <Button
+                                            onClick={() => setShowPaymentModal(true)}
+                                            className="mt-4 bg-red-500 hover:bg-red-600 text-white w-full border-0"
+                                        >
+                                            Pay / Settle
+                                        </Button>
+                                        <div className="absolute top-0 right-0 p-4 opacity-10">
+                                            <DollarSign size={48} />
+                                        </div>
+                                    </Card>
+                                    <Card className="p-6 bg-white/5 border border-white/10 space-y-4">
+                                        <div>
+                                            <p className="text-slate-400 font-medium text-xs uppercase tracking-wider">Lifetime Credit</p>
+                                            <p className="text-2xl font-bold text-white">{formatCurrency(reportData.totalCredit || 0)}</p>
+                                        </div>
+                                        <div className="pt-4 border-t border-white/10">
+                                            <p className="text-slate-400 font-medium text-xs uppercase tracking-wider">Lifetime Paid</p>
+                                            <p className="text-2xl font-bold text-green-400">{formatCurrency(reportData.totalPaid || 0)}</p>
+                                        </div>
+                                    </Card>
+                                    <Card className="p-6 bg-white/5 border border-white/10 flex flex-col justify-center">
+                                        <p className="text-slate-400 mb-2 font-medium">Period Sales</p>
+                                        <h2 className="text-4xl font-bold text-white">{formatCurrency(reportData.total || 0)}</h2>
+                                        <p className="text-sm text-slate-400 mt-2">Current Filter Selection</p>
+                                    </Card>
+                                </div>
+
+                                {/* Sales Table */}
+                                <Card className="overflow-hidden">
+                                    <div className="p-4 border-b border-white/10 bg-white/5">
+                                        <h3 className="font-bold text-white">Transaction History</h3>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm text-left">
+                                            <thead className="text-slate-400 bg-white/5 uppercase text-xs">
+                                                <tr>
+                                                    <th className="px-6 py-3">Date</th>
+                                                    <th className="px-6 py-3">Invoice</th>
+                                                    <th className="px-6 py-3">Mode</th>
+                                                    <th className="px-6 py-3">Items</th>
+                                                    <th className="px-6 py-3 text-right">Amount</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-white/5">
+                                                {transactions.length > 0 ? transactions.map((txn: any) => (
+                                                    <tr key={txn.id} className={`transition-colors ${txn.type === 'PAYMENT' ? 'bg-green-500/5 hover:bg-green-500/10' : 'hover:bg-white/5'}`}>
+                                                        <td className="px-6 py-4 font-medium text-white">
+                                                            {new Date(txn.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).split(' ').join('/')}
+                                                            <div className="text-xs text-slate-500">{new Date(txn.date).toLocaleTimeString()}</div>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-slate-300">
+                                                            {txn.type === 'PAYMENT' ? <span className="text-green-400 font-mono">PAYMENT</span> : txn.invoiceNumber}
+                                                            {txn.note && <div className="text-xs text-slate-500 italic">{txn.note}</div>}
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <span className={`text-xs font-bold px-2 py-1 rounded ${txn.paymentMode === 'CREDIT' ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
+                                                                {txn.paymentMode}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-slate-400">
+                                                            {txn.type === 'SALE' ? txn.items.map((i: any) => i.product.name).join(', ') : '-'}
+                                                        </td>
+                                                        <td className={`px-6 py-4 text-right font-bold ${txn.type === 'PAYMENT' ? 'text-green-400' : 'text-white'}`}>
+                                                            {txn.type === 'PAYMENT' ? '-' : ''}{formatCurrency(txn.amount)}
+                                                        </td>
+                                                    </tr>
+                                                )) : (
+                                                    <tr>
+                                                        <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
+                                                            No records found for this period.
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                            {reportData.sales.length > 0 && (
+                                                <tfoot className="bg-white/5 font-bold text-white">
+                                                    <tr>
+                                                        <td colSpan={4} className="px-6 py-4 text-right">Total Period Sales</td>
+                                                        <td className="px-6 py-4 text-right">{formatCurrency(reportData.total)}</td>
+                                                    </tr>
+                                                </tfoot>
+                                            )}
+                                        </table>
+                                    </div>
+                                </Card>
+                            </div>
+                        )
+                    }
+                </div >
+            )
+            }
+            {/* Payment Modal */}
+            {
+                showPaymentModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                        <Card className="w-full max-w-md bg-[#1e293b] border-white/10">
+                            <div className="p-6 space-y-4">
+                                <h2 className="text-xl font-bold text-white">Record Payment</h2>
+                                <p className="text-sm text-slate-400">Record a payment from Flat {reportData?.customer?.flatNumber}</p>
+
+                                <form onSubmit={handlePayment} className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm text-slate-400 mb-1">Amount</label>
+                                        <Input
+                                            type="number"
+                                            step="0.01"
+                                            required
+                                            value={paymentAmount}
+                                            onChange={e => setPaymentAmount(e.target.value)}
+                                            className="bg-white/10 border-transparent text-lg font-bold"
+                                            placeholder="0.00"
+                                            autoFocus
+                                        />
+                                        <div className="flex gap-2 mt-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setPaymentAmount(reportData.balance.toString())}
+                                                className="text-xs bg-white/10 hover:bg-white/20 px-2 py-1 rounded text-purple-400"
+                                            >
+                                                Pay Full Due ({formatCurrency(reportData.balance)})
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm text-slate-400 mb-1">Note (Optional)</label>
+                                        <Input
+                                            value={paymentNote}
+                                            onChange={e => setPaymentNote(e.target.value)}
+                                            className="bg-white/10 border-transparent"
+                                            placeholder="e.g. UPI Ref..."
+                                        />
+                                    </div>
+                                    <div className="flex justify-end gap-3 pt-4">
+                                        <Button type="button" variant="secondary" onClick={() => setShowPaymentModal(false)}>
+                                            Cancel
+                                        </Button>
+                                        <Button type="submit" className="bg-green-600 hover:bg-green-500" isLoading={submittingPayment}>
+                                            Confirm Payment
+                                        </Button>
+                                    </div>
+                                </form>
+                            </div>
+                        </Card>
+                    </div>
+                )
+            }
+        </div >
     )
 }

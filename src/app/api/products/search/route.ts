@@ -26,6 +26,9 @@ export async function GET(request: Request) {
     const allProducts = await prisma.product.findMany({
         where: {
             supermarketId
+        },
+        include: {
+            batches: true
         }
     })
 
@@ -33,7 +36,15 @@ export async function GET(request: Request) {
     const products = allProducts.filter(p =>
         p.name.toLowerCase().includes(lowerQ) ||
         p.barcode.includes(lowerQ)
-    ).slice(0, 10)
+    ).slice(0, 10).map(p => {
+        const total = p.batches.reduce((acc, b) => acc + b.quantity, 0)
+        const expired = p.batches.filter(b => b.expiryDate && new Date(b.expiryDate) < new Date()).reduce((acc, b) => acc + b.quantity, 0)
+        return {
+            ...p,
+            stock: total,
+            expiredStock: expired
+        }
+    })
 
     return NextResponse.json(products)
 }

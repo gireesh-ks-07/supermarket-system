@@ -20,10 +20,10 @@
 
 body {
   color: var(--foreground);
-  background: var(--background);
+  background-color: #020617;
   background-image:
-    radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(56, 189, 248, 0.15) 0px, transparent 50%);
+    radial-gradient(circle at 0% 0%, rgba(124, 58, 237, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 100% 100%, rgba(59, 130, 246, 0.15) 0%, transparent 50%);
   background-attachment: fixed;
   font-family: system-ui, -apple-system, sans-serif;
   margin: 0;
@@ -102,5 +102,38 @@ body {
 
   50% {
     opacity: .5;
+  }
+}
+
+/* Date Picker Styles */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(40%) sepia(80%) saturate(2000%) hue-rotate(250deg);
+  padding: 5px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  background-color: rgba(139, 92, 246, 0.1);
+  transform: scale(1.1);
+}
+
+.scroll-pulse {
+  animation: scroll-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes scroll-pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+    color: #a855f7;
   }
 }

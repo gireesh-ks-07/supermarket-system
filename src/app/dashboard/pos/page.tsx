@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { Trash, Plus, Minus, Search, CreditCard, Banknote, QrCode, RefreshCcw } from 'lucide-react'
+import { Trash, Plus, Minus, Search, CreditCard, Banknote, QrCode, RefreshCcw, CheckCircle2, AlertCircle, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
 
@@ -15,6 +15,8 @@ type Product = {
     barcode: string
     taxPercent: number
     unit: string
+    stock: number
+    expiredStock?: number // Added
 }
 
 type CartItem = Product & {
@@ -96,16 +98,42 @@ export default function POSPage() {
 
     const handleCheckout = async (mode: string) => {
         if (cart.length === 0) return
+        if (mode === 'CREDIT' && !flatNumber) {
+            setStatusModal({
+                show: true,
+                type: 'error',
+                title: 'Missing Flat Number',
+                message: 'Please enter a flat number to record this credit transaction.'
+            })
+            return
+        }
         setLoading(true)
         try {
-            await fetch('/api/sales', {
+            const res = await fetch('/api/sales', {
                 method: 'POST',
-                body: JSON.stringify({ items: cart, paymentMode: mode })
+                body: JSON.stringify({ items: cart, paymentMode: mode, flatNumber: flatNumber.trim() })
             })
+
+            if (!res.ok) {
+                const data = await res.json()
+                throw new Error(data.error || 'Transaction failed')
+            }
+
             setCart([])
-            // Show success
-        } catch (e) {
-            alert('Error')
+            setFlatNumber('')
+            setStatusModal({
+                show: true,
+                type: 'success',
+                title: 'Sale Successful!',
+                message: 'Transaction has been completed and inventory updated.'
+            })
+        } catch (e: any) {
+            setStatusModal({
+                show: true,
+                type: 'error',
+                title: 'Transaction Failed',
+                message: e.message || 'There was an issue processing the sale. Please try again.'
+            })
         } finally {
             setLoading(false)
         }
@@ -113,6 +141,60 @@ export default function POSPage() {
 
     const [drafts, setDrafts] = useState<{ id: string, items: CartItem[], date: string }[]>([])
     const [showDrafts, setShowDrafts] = useState(false)
+    const [flatNumber, setFlatNumber] = useState('')
+    const [allFlats, setAllFlats] = useState<string[]>([])
+    const [filteredFlats, setFilteredFlats] = useState<string[]>([])
+    const [showFlatSuggestions, setShowFlatSuggestions] = useState(false)
+    const [flatSelectedIndex, setFlatSelectedIndex] = useState(-1)
+    const [statusModal, setStatusModal] = useState<{ show: boolean, type: 'success' | 'error', message: string, title: string } | null>(null)
+    const flatInputRef = useRef<HTMLInputElement>(null)
+
+    useEffect(() => {
+        // Fetch all flats for autocomplete
+        fetch('/api/customers/flats')
+            .then(res => res.json())
+            .then(data => {
+                if (Array.isArray(data)) setAllFlats(data)
+            })
+            .catch(err => console.error('Failed to fetch flats', err))
+    }, [])
+
+    const handleFlatChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value
+        setFlatNumber(val)
+        if (val.length > 0) {
+            const matches = allFlats.filter(f => f.toLowerCase().includes(val.toLowerCase()))
+            setFilteredFlats(matches)
+            setShowFlatSuggestions(true)
+            setFlatSelectedIndex(0) // Default to first item
+        } else {
+            setShowFlatSuggestions(false)
+            setFlatSelectedIndex(-1)
+        }
+    }
+
+    const handleFlatKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (!showFlatSuggestions || filteredFlats.length === 0) return
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault()
+            setFlatSelectedIndex(prev => (prev < filteredFlats.length - 1 ? prev + 1 : prev))
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault()
+            setFlatSelectedIndex(prev => (prev > 0 ? prev - 1 : 0))
+        } else if (e.key === 'Enter') {
+            e.preventDefault()
+            if (flatSelectedIndex >= 0 && flatSelectedIndex < filteredFlats.length) {
+                selectFlat(filteredFlats[flatSelectedIndex])
+                flatInputRef.current?.blur() // Optional: Move focus or keep it
+            }
+        }
+    }
+
+    const selectFlat = (flat: string) => {
+        setFlatNumber(flat)
+        setShowFlatSuggestions(false)
+    }
 
     useEffect(() => {
         const saved = localStorage.getItem('pos_drafts')
@@ -153,8 +235,8 @@ export default function POSPage() {
     return (
         <div className="flex flex-col h-full gap-4">
             <div className="flex justify-between items-center mb-2">
-                <h1 className="text-2xl font-bold">Billing Terminal</h1>
-                <div className="flex items-center gap-4">
+                <h1 className="text-xl md:text-2xl font-bold">Billing Terminal</h1>
+                <div className="flex items-center gap-2 md:gap-4">
                     <Button
                         variant="secondary"
                         onClick={() => setShowDrafts(true)}
@@ -162,62 +244,61 @@ export default function POSPage() {
                     >
                         Drafts {drafts.length > 0 && <span className="ml-1 bg-purple-500 text-white text-[10px] px-1.5 rounded-full">{drafts.length}</span>}
                     </Button>
-                    <div className="text-slate-400 text-sm">Shift ID: #8823 • Cashier: You</div>
+                    <div className="hidden md:block text-slate-400 text-sm">Shift ID: #8823 • Cashier: You</div>
                 </div>
             </div>
 
-            <div className="flex flex-col lg:flex-row flex-1 gap-6 overflow-hidden">
+            <div className="flex flex-col md:flex-row flex-1 gap-4 md:gap-6 overflow-hidden md:overflow-hidden overflow-y-auto">
                 {/* Left: Cart */}
-                <Card className="flex-[2] flex flex-col p-0 overflow-hidden min-h-[400px]">
-                    <div className="p-4 bg-white/5 border-b border-white/5 grid grid-cols-12 gap-2 lg:gap-4 font-semibold text-slate-300 text-xs lg:text-sm">
-                        <div className="col-span-1 hidden sm:block">#</div>
-                        <div className="col-span-6 sm:col-span-5">Item</div>
-                        <div className="col-span-2 text-center hidden sm:block">Price</div>
-                        <div className="col-span-3 sm:col-span-2 text-center">Qty</div>
-                        <div className="col-span-3 sm:col-span-2 text-right">Total</div>
+                <Card className="flex-1 md:flex-[2] flex flex-col p-0 overflow-hidden min-h-[400px]">
+                    <div className="hidden md:grid p-4 bg-white/5 border-b border-white/5 grid-cols-12 gap-4 font-semibold text-slate-300">
+                        <div className="col-span-1">#</div>
+                        <div className="col-span-5">Item</div>
+                        <div className="col-span-2 text-center">Price</div>
+                        <div className="col-span-2 text-center">Qty</div>
+                        <div className="col-span-2 text-right">Total</div>
                     </div>
                     <div className="flex-1 overflow-auto p-2 space-y-2">
                         {cart.map((item, idx) => (
-                            <div key={item.cartId} className="group grid grid-cols-12 gap-2 lg:gap-4 items-center p-2 lg:p-3 rounded-lg hover:bg-white/5 transition-colors text-xs lg:text-sm">
-                                <div className="col-span-1 text-slate-500 hidden sm:block">{idx + 1}</div>
-                                <div className="col-span-6 sm:col-span-5">
-                                    <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 lg:gap-2">
-                                        <p className="font-medium truncate max-w-[120px] lg:max-w-none">{item.name}</p>
-                                        <span className="text-[10px] px-1 lg:px-1.5 py-0.5 rounded bg-white/10 text-slate-300 w-fit">{item.unit}</span>
+                            <div key={item.cartId} className="group grid grid-cols-6 md:grid-cols-12 gap-2 md:gap-4 items-center p-3 rounded-lg hover:bg-white/5 transition-colors text-sm border-b border-white/5 md:border-0 last:border-0">
+                                <div className="hidden md:block col-span-1 text-slate-500">{idx + 1}</div>
+                                <div className="col-span-5">
+                                    <div className="flex items-baseline gap-2">
+                                        <p className="font-medium truncate max-w-[120px] md:max-w-none">{item.name}</p>
+                                        <span className="text-xs px-1.5 py-0.5 rounded bg-white/10 text-slate-300">{item.unit}</span>
                                     </div>
-                                    <p className="text-[10px] text-slate-500 hidden sm:block">{item.barcode}</p>
-                                    <p className="text-[10px] text-slate-500 sm:hidden">{formatCurrency(item.sellingPrice)}</p>
+                                    <p className="text-xs text-slate-500">{item.barcode}</p>
                                 </div>
-                                <div className="col-span-2 text-center text-slate-400 hidden sm:block">{formatCurrency(item.sellingPrice)}</div>
-                                <div className="col-span-3 sm:col-span-2 flex items-center justify-center gap-1 sm:gap-2">
-                                    <button onClick={() => updateQuantity(item.id, -1)} className="p-1 hover:bg-white/10 rounded"><Minus size={12} /></button>
-                                    <span className="w-4 sm:w-6 text-center">{item.quantity}</span>
-                                    <button onClick={() => updateQuantity(item.id, 1)} className="p-1 hover:bg-white/10 rounded"><Plus size={12} /></button>
+                                <div className="hidden md:block col-span-2 text-center text-slate-400">{formatCurrency(item.sellingPrice)}</div>
+                                <div className="col-span-3 md:col-span-2 flex items-center justify-center gap-2">
+                                    <button onClick={() => updateQuantity(item.id, -1)} className="p-1 hover:bg-white/10 rounded"><Minus size={14} /></button>
+                                    <span className="w-6 text-center">{item.quantity}</span>
+                                    <button onClick={() => updateQuantity(item.id, 1)} className="p-1 hover:bg-white/10 rounded"><Plus size={14} /></button>
                                 </div>
-                                <div className="col-span-3 sm:col-span-2 text-right font-bold text-green-400 flex items-center justify-end gap-1 sm:gap-2">
+                                <div className="col-span-3 md:col-span-2 text-right font-bold text-green-400 flex items-center justify-end gap-2">
                                     {formatCurrency(item.total)}
-                                    <button onClick={() => removeItem(item.id)} className="text-red-400 lg:opacity-50 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-opacity"><Trash size={12} /></button>
+                                    <button onClick={() => removeItem(item.id)} className="text-red-400 p-1 hover:bg-white/10 rounded"><Trash size={14} /></button>
                                 </div>
                             </div>
                         ))}
                         {cart.length === 0 && (
-                            <div className="h-full flex flex-col items-center justify-center text-slate-500 opacity-50 py-12">
+                            <div className="h-full flex flex-col items-center justify-center text-slate-500 opacity-50">
                                 <Search size={48} className="mb-4" />
-                                <p className="text-sm">Scan barcode or search product</p>
+                                <p>Scan barcode or search product</p>
                             </div>
                         )}
                     </div>
                 </Card>
 
                 {/* Right: Actions */}
-                <div className="w-full lg:w-96 flex flex-col gap-4">
+                <div className="flex-1 flex flex-col gap-4">
                     <Card className="p-4 relative z-20">
                         <div className="relative">
-                            <Search className="absolute left-3 top-2.5 text-slate-400 pointer-events-none" size={20} />
+                            <Search className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" size={20} />
                             <Input
                                 ref={searchInputRef}
                                 wrapperClassName="mb-0"
-                                className="pl-10 h-10 bg-white/10 border-transparent focus:bg-white/20 text-white placeholder:text-slate-500"
+                                className="pr-10 h-10 bg-white/10 border-transparent focus:bg-white/20 text-white placeholder:text-slate-500"
                                 placeholder="Scan / Search..."
                                 value={query}
                                 onChange={(e) => {
@@ -251,22 +332,30 @@ export default function POSPage() {
                                     searchResults.map((product) => (
                                         <button
                                             key={product.id}
-                                            className="w-full text-left p-3 hover:bg-white/5 border-b border-white/5 last:border-0 flex justify-between items-center"
+                                            className={`w-full text-left p-3 border-b border-white/5 last:border-0 flex justify-between items-center ${product.stock > 0 ? 'hover:bg-white/5' : 'opacity-50 cursor-not-allowed'}`}
+                                            disabled={product.stock <= 0}
                                             onClick={() => {
-                                                addToCart(product)
-                                                setQuery('')
-                                                setSearchResults([])
-                                                searchInputRef.current?.focus()
+                                                if (product.stock > 0) {
+                                                    addToCart(product)
+                                                    setQuery('')
+                                                    setSearchResults([])
+                                                    searchInputRef.current?.focus()
+                                                }
                                             }}
                                         >
                                             <div>
-                                                <p className="font-medium text-white text-sm">
+                                                <p className="font-medium text-white">
                                                     {product.name}
-                                                    <span className="ml-2 text-[10px] font-normal text-slate-400 bg-white/10 px-1 rounded">{product.unit}</span>
+                                                    <span className="ml-2 text-xs font-normal text-slate-400 bg-white/10 px-1 rounded">{product.unit}</span>
+                                                    {product.stock <= 0 && <span className="ml-2 text-xs font-bold text-red-500 uppercase">Out of Stock</span>}
+                                                    {product.stock > 0 && product.expiredStock === product.stock && <span className="ml-2 text-xs font-bold text-red-500 uppercase">Expired</span>}
+                                                    {product.stock > 0 && product.expiredStock! > 0 && product.expiredStock !== product.stock && <span className="ml-2 text-xs font-bold text-yellow-500 uppercase">Expiring</span>}
                                                 </p>
-                                                <p className="text-[10px] text-slate-400">{product.barcode} • {formatCurrency(product.sellingPrice)}</p>
+                                                <p className="text-xs text-slate-400">
+                                                    {product.barcode} • {formatCurrency(product.sellingPrice)} • Stock: {product.stock}
+                                                </p>
                                             </div>
-                                            <Plus size={16} className="text-green-400" />
+                                            {product.stock > 0 && <Plus size={16} className="text-green-400" />}
                                         </button>
                                     ))
                                 ) : (
@@ -278,8 +367,8 @@ export default function POSPage() {
                         )}
                     </Card>
 
-                    <Card className="flex flex-col justify-end p-4 lg:p-6">
-                        <div className="space-y-2 lg:space-y-3 mb-4 lg:mb-6 text-slate-300 text-sm">
+                    <Card className="flex-1 flex flex-col justify-end p-6">
+                        <div className="space-y-3 mb-6 text-slate-300">
                             <div className="flex justify-between">
                                 <span>Subtotal</span>
                                 <span>{formatCurrency(subTotal)}</span>
@@ -288,27 +377,52 @@ export default function POSPage() {
                                 <span>Tax (10%)</span>
                                 <span>{formatCurrency(tax)}</span>
                             </div>
-                            <div className="flex justify-between items-end pt-3 lg:pt-4 border-t border-white/10">
-                                <span className="text-base lg:text-lg">Total Payable</span>
-                                <span className="text-2xl lg:text-4xl font-bold text-white">{formatCurrency(total)}</span>
+                            <div className="flex justify-between items-end pt-4 border-t border-white/10">
+                                <span className="text-lg">Total Payable</span>
+                                <span className="text-4xl font-bold text-white">{formatCurrency(total)}</span>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 lg:gap-3 mb-2 lg:mb-3">
-                            <Button variant="secondary" onClick={saveDraft} disabled={cart.length === 0} className="col-span-2 justify-center py-2 lg:py-3 border-dashed border-slate-600 text-slate-400 hover:text-white hover:border-white text-xs lg:text-sm">
+                        <div className="grid grid-cols-2 gap-3 mb-3 relative">
+                            <Input
+                                ref={flatInputRef}
+                                placeholder="Enter Flat Number (Required for Credit)"
+                                value={flatNumber}
+                                onChange={handleFlatChange}
+                                onKeyDown={handleFlatKeyDown}
+                                onFocus={() => flatNumber && setShowFlatSuggestions(true)}
+                                onBlur={() => setTimeout(() => setShowFlatSuggestions(false), 200)}
+                                className="col-span-2 bg-white/10 border-transparent focus:bg-white/20 text-white placeholder:text-slate-500"
+                                autoComplete="off"
+                            />
+                            {showFlatSuggestions && filteredFlats.length > 0 && (
+                                <div className="absolute bottom-full left-0 right-0 mb-1 bg-[#1e293b] border border-white/10 rounded-lg shadow-xl z-50 max-h-40 overflow-auto">
+                                    {filteredFlats.map((flat, i) => (
+                                        <button
+                                            key={i}
+                                            className={`w-full text-left p-2 text-white text-sm ${i === flatSelectedIndex ? 'bg-purple-600' : 'hover:bg-white/5'}`}
+                                            onClick={() => selectFlat(flat)}
+                                            onMouseEnter={() => setFlatSelectedIndex(i)}
+                                        >
+                                            {flat}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                            <Button variant="secondary" onClick={saveDraft} disabled={cart.length === 0} className="col-span-2 justify-center py-3 border-dashed border-slate-600 text-slate-400 hover:text-white hover:border-white">
                                 + Hold Bill / New
                             </Button>
                         </div>
 
-                        <div className="grid grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2 lg:gap-3">
-                            <Button variant="secondary" className="justify-center py-3 lg:py-4 bg-green-600 hover:bg-green-500 text-white text-xs lg:text-sm" onClick={() => handleCheckout('CASH')}>
-                                <Banknote className="mr-2" size={18} /> CASH
+                        <div className="grid grid-cols-2 gap-3">
+                            <Button variant="secondary" className="justify-center py-4 bg-green-600 hover:bg-green-500 text-white" onClick={() => handleCheckout('CASH')}>
+                                <Banknote className="mr-2" /> CASH
                             </Button>
-                            <Button variant="secondary" className="justify-center py-3 lg:py-4 bg-blue-600 hover:bg-blue-500 text-white text-xs lg:text-sm" onClick={() => handleCheckout('CARD')}>
-                                <CreditCard className="mr-2" size={18} /> CARD
+                            <Button variant="secondary" className="justify-center py-4 bg-blue-600 hover:bg-blue-500 text-white" onClick={() => handleCheckout('CREDIT')}>
+                                <CreditCard className="mr-2" /> CREDIT
                             </Button>
-                            <Button variant="secondary" className="justify-center py-3 lg:py-4 col-span-2 bg-purple-600 hover:bg-purple-500 text-white text-xs lg:text-sm" onClick={() => handleCheckout('UPI')}>
-                                <QrCode className="mr-2" size={18} /> UPI / QR
+                            <Button variant="secondary" className="justify-center py-4 col-span-2 bg-purple-600 hover:bg-purple-500 text-white" onClick={() => handleCheckout('UPI')}>
+                                <QrCode className="mr-2" /> UPI / QR
                             </Button>
                         </div>
                     </Card>
@@ -345,6 +459,30 @@ export default function POSPage() {
                                 ))
                             )}
                         </div>
+                    </Card>
+                </div>
+            )}
+            {/* Custom Status Modal */}
+            {statusModal?.show && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
+                    <Card className={`w-full max-w-sm border-2 overflow-hidden shadow-2xl ${statusModal.type === 'success' ? 'border-emerald-500/50 shadow-emerald-500/20' : 'border-red-500/50 shadow-red-500/20'}`}>
+                        <div className="p-6 text-center space-y-4">
+                            <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center ${statusModal.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-500'}`}>
+                                {statusModal.type === 'success' ? <CheckCircle2 size={32} /> : <AlertCircle size={32} />}
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-white mb-1">{statusModal.title}</h3>
+                                <p className="text-slate-400 text-sm">{statusModal.message}</p>
+                            </div>
+                            <Button
+                                className={`w-full mt-4 ${statusModal.type === 'success' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-600 hover:bg-red-700'}`}
+                                onClick={() => setStatusModal(null)}
+                            >
+                                Continue
+                            </Button>
+                        </div>
+                        {/* Progress Bar for Auto-dismiss (optional) but for POS acknowledgement is better */}
+                        <div className={`h-1 w-full ${statusModal.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'} opacity-30`} />
                     </Card>
                 </div>
             )}

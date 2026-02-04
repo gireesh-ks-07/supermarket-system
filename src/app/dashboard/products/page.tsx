@@ -5,7 +5,7 @@ import useSWR, { mutate } from 'swr'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Search, Plus, Trash2, Edit2, X, Package } from 'lucide-react'
+import { Search, Plus, Trash2, Edit2, X, Package, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { formatCurrency } from '@/lib/utils'
@@ -149,6 +149,99 @@ export default function ProductsPage() {
         }
     }
 
+    const fileInputRef = React.useRef<HTMLInputElement>(null)
+
+    const handleImportClick = () => {
+        fileInputRef.current?.click()
+    }
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        const reader = new FileReader()
+        reader.onload = async (event) => {
+            const text = event.target?.result as string
+            if (!text) return
+
+            const rows = text.split('\n').filter(row => row.trim() !== '')
+            if (rows.length < 2) {
+                toast.error('CSV file is empty or missing data')
+                return
+            }
+
+            // Simple CSV parsing: assume header is name,barcode,category,brand,unit,cost,price,tax,minStock
+            const header = rows[0].split(',').map(h => h.trim().toLowerCase())
+            const productsToImport = []
+
+            for (let i = 1; i < rows.length; i++) {
+                const values = rows[i].split(',').map(v => v.trim())
+                if (values.length < 2) continue // Skip empty rows
+
+                const product: any = {}
+                header.forEach((h, index) => {
+                    if (h === 'name') product.name = values[index]
+                    if (h === 'barcode') product.barcode = values[index]
+                    if (h === 'category') product.category = values[index]
+                    if (h === 'brand') product.brand = values[index]
+                    if (h === 'unit') product.unit = values[index]
+                    if (h === 'cost' || h === 'costprice') product.costPrice = values[index]
+                    if (h === 'price' || h === 'sellingprice') product.sellingPrice = values[index]
+                    if (h === 'tax' || h === 'taxpercent') product.taxPercent = values[index]
+                    if (h === 'minstock' || h === 'minstocklevel') product.minStockLevel = values[index]
+                })
+
+                if (product.name && product.barcode) {
+                    productsToImport.push(product)
+                }
+            }
+
+            if (productsToImport.length === 0) {
+                toast.error('No valid products found in CSV')
+                return
+            }
+
+            setSubmitting(true)
+            const loadingToast = toast.loading(`Importing ${productsToImport.length} products...`)
+
+            try {
+                const res = await fetch('/api/products/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(productsToImport)
+                })
+
+                if (res.ok) {
+                    const result = await res.json()
+                    toast.success(`Import complete! Created: ${result.created}, Skipped (Duplicates): ${result.skipped}`)
+                    mutate('/api/products')
+                } else {
+                    const error = await res.json()
+                    toast.error(error.error || 'Import failed')
+                }
+            } catch (err) {
+                toast.error('Network error during import')
+            } finally {
+                toast.dismiss(loadingToast)
+                setSubmitting(false)
+                if (fileInputRef.current) fileInputRef.current.value = ''
+            }
+        }
+        reader.readAsText(file)
+    }
+
+    const downloadTemplate = () => {
+        const headers = ['name', 'barcode', 'category', 'brand', 'unit', 'cost', 'price', 'tax', 'minStock']
+        const csvContent = "data:text/csv;charset=utf-8," + headers.join(",")
+        const encodedUri = encodeURI(csvContent)
+        const link = document.createElement("a")
+        link.setAttribute("href", encodedUri)
+        link.setAttribute("download", "product_import_template.csv")
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+    }
+
     const filteredProducts = products?.filter(p =>
         p.name.toLowerCase().includes(search.toLowerCase()) ||
         p.barcode.includes(search)
@@ -161,31 +254,51 @@ export default function ProductsPage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
                         Product Catalogue
                     </h1>
                     <p className="text-sm text-slate-400">Manage your inventory items</p>
                 </div>
-                {canManageStock && (
-                    <Button onClick={() => { resetForm(); setIsAddModalOpen(true) }} className="w-full sm:w-auto">
-                        <Plus size={18} /> Add Product
+                <div className="flex gap-2">
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        accept=".csv"
+                        className="hidden"
+                    />
+                    <Button variant="secondary" onClick={handleImportClick}>
+                        <Upload size={18} className="mr-2" /> Import CSV
                     </Button>
-                )}
+                    {canManageStock && (
+                        <Button onClick={() => { resetForm(); setIsAddModalOpen(true) }}>
+                            <Plus size={18} className="mr-2" /> Add Product
+                        </Button>
+                    )}
+                </div>
             </div>
 
             {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-4">
-                <Card className="flex-1 p-3 flex items-center gap-3">
-                    <Search className="text-slate-400" size={20} />
-                    <input
-                        className="bg-transparent border-none outline-none text-white w-full placeholder:text-slate-500 text-sm"
-                        placeholder="Search by name, barcode..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
-                </Card>
+            <div className="flex flex-col gap-2">
+                <div className="flex gap-4">
+                    <Card className="flex-1 p-3 flex items-center gap-3">
+                        <Search className="text-slate-400" size={20} />
+                        <input
+                            className="bg-transparent border-none outline-none text-white w-full placeholder:text-slate-500"
+                            placeholder="Search by name, barcode..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                        />
+                    </Card>
+                </div>
+                <button
+                    onClick={downloadTemplate}
+                    className="text-xs text-purple-400 hover:text-purple-300 text-left w-fit px-1 transition-colors flex items-center gap-1"
+                >
+                    <Package size={12} /> Download CSV Template for Import
+                </button>
             </div>
 
             {/* Product Table */}
@@ -222,7 +335,7 @@ export default function ProductsPage() {
                                         </td>
                                         <td className="p-4 text-slate-400 font-mono">{product.barcode}</td>
                                         <td className="p-4 text-slate-400">
-                                            <span className="px-2 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs">
+                                            <span className="px-2 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs text-center border border-blue-500/20">
                                                 {product.category}
                                             </span>
                                         </td>

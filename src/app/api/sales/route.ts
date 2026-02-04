@@ -23,13 +23,38 @@ export async function POST(request: Request) {
             user = jwt.verify(token, SECRET_KEY) as any
         } catch (e) { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
 
-        const { items, paymentMode } = await request.json()
+        const { items, paymentMode, flatNumber } = await request.json()
 
         if (!items || items.length === 0) return NextResponse.json({ error: 'Empty cart' }, { status: 400 })
 
         const totalAmount = items.reduce((acc: number, item: any) => acc + item.total, 0)
 
         const result = await prisma.$transaction(async (tx) => {
+            let customerId = null
+
+            if (flatNumber) {
+                // Find or create customer with this flat number
+                const existingCustomer = await tx.customer.findFirst({
+                    where: {
+                        supermarketId: user.supermarketId,
+                        flatNumber
+                    }
+                })
+
+                if (existingCustomer) {
+                    customerId = existingCustomer.id
+                } else {
+                    const newCustomer = await tx.customer.create({
+                        data: {
+                            supermarketId: user.supermarketId,
+                            flatNumber,
+                            name: `Flat ${flatNumber}` // Auto-generate name
+                        }
+                    })
+                    customerId = newCustomer.id
+                }
+            }
+
             const sale = await tx.sale.create({
                 data: {
                     supermarketId: user.supermarketId,
@@ -39,6 +64,7 @@ export async function POST(request: Request) {
                     subTotal: totalAmount,
                     taxTotal: totalAmount * 0.1, // Dummy tax logic
                     totalAmount: totalAmount * 1.1,
+                    customerId,
                     items: {
                         create: items.map((item: any) => ({
                             productId: item.id,
@@ -87,8 +113,8 @@ export async function POST(request: Request) {
         })
 
         return NextResponse.json({ success: true, invoice: result })
-    } catch (error) {
+    } catch (error: any) {
         console.error(error)
-        return NextResponse.json({ error: 'Failed to process sale' }, { status: 500 })
+        return NextResponse.json({ error: error.message || 'Failed to process sale' }, { status: 400 })
     }
 }
