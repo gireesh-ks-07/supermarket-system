@@ -20,7 +20,7 @@ export default function ReportsPage() {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
 
     const { data: businessData, isLoading: businessLoading } = useSWR(
-        activeTab === 'business' ? `/api/reports/business?period=${period === 'daily' ? 'weekly' : period}&date=${selectedDate}` : null, // Business API defaults
+        activeTab === 'business' ? `/api/reports/business?period=${period}&date=${selectedDate}` : null,
         (url: string) => fetch(url).then(res => res.json())
     )
 
