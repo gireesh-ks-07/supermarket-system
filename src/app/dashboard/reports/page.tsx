@@ -11,10 +11,12 @@ import {
     Search, FileText, PieChart, Banknote, QrCode
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
+import { toast } from 'sonner'
 
 export default function ReportsPage() {
     const [activeTab, setActiveTab] = useState<'business' | 'credit' | 'profit'>('business')
 
+    // ... (rest of simple states) ...
     // Shared Date State (used by Business and Profit)
     const [period, setPeriod] = useState('daily')
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
@@ -55,7 +57,7 @@ export default function ReportsPage() {
 
     const fetchCreditReport = async () => {
         if (!flatNumber) {
-            alert('Please enter a Flat Number')
+            toast.error('Please enter a Flat Number')
             return
         }
         setLoading(true)
@@ -65,15 +67,15 @@ export default function ReportsPage() {
             const data = await res.json()
 
             if (!res.ok) {
-                if (res.status === 401) alert('Session expired. Please login again.')
-                else alert(data.error || 'Failed to fetch report')
+                if (res.status === 401) toast.error('Session expired. Please login again.')
+                else toast.error(data.error || 'Failed to fetch report')
                 return
             }
 
             setReportData(data)
         } catch (e: any) {
             console.error(e)
-            alert(e.message || 'Failed to fetch report')
+            toast.error(e.message || 'Failed to fetch report')
         } finally {
             setLoading(false)
         }
@@ -97,7 +99,7 @@ export default function ReportsPage() {
             })
 
             if (res.ok) {
-                alert('Payment Recorded Successfully')
+                toast.success('Payment Recorded Successfully')
                 setShowPaymentModal(false)
                 setPaymentAmount('')
                 setPaymentNote('')
