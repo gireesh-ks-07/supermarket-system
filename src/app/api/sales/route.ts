@@ -96,9 +96,12 @@ export async function POST(request: Request) {
                 }
 
                 for (const batch of batches) {
-                    if (remainingQty <= 0) break
+                    if (remainingQty <= 0.0001) break
 
                     const deduct = Math.min(batch.quantity, remainingQty)
+
+                    // Avoid negative zero or micro-values
+                    if (deduct <= 0) continue
 
                     await tx.productBatch.update({
                         where: { id: batch.id },

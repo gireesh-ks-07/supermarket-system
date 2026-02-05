@@ -84,7 +84,7 @@ model ProductBatch {
   
   batchNumber   String
   expiryDate    DateTime?
-  quantity      Int      // Current stock in this batch
+  quantity      Float      // Current stock in this batch
   
   purchaseId    String?
   purchase      Purchase? @relation(fields: [purchaseId], references: [id])
@@ -134,7 +134,7 @@ model PurchaseItem {
   productId  String
   product    Product  @relation(fields: [productId], references: [id])
 
-  quantity   Int
+  quantity   Float
   costPrice  Decimal
   taxAmount  Decimal?
   total      Decimal
@@ -187,7 +187,7 @@ model SaleItem {
   productId String
   product   Product @relation(fields: [productId], references: [id])
 
-  quantity  Int
+  quantity      Float      // Current stock in this batch
   unitPrice Decimal
   taxAmount Decimal
   total     Decimal
