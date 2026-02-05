@@ -202,10 +202,10 @@ export default function SalesHistoryPage() {
                                     <div className="col-span-1 text-center">
                                         <Button
                                             variant="ghost"
-                                            className="h-8 w-8 p-0 rounded-full bg-white/10 text-white hover:bg-white/20"
+                                            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 h-auto w-auto rounded-md text-xs font-semibold"
                                             onClick={() => setSelectedSale(sale)}
                                         >
-                                            <ArrowUpRight size={16} />
+                                            View <ArrowUpRight size={14} />
                                         </Button>
                                     </div>
                                 </div>

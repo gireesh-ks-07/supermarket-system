@@ -1,5 +1,5 @@
 import React from 'react'
-import clsx from 'clsx'
+import { cn } from '@/lib/utils'
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: 'primary' | 'secondary' | 'danger' | 'ghost'
@@ -17,7 +17,7 @@ export function Button({ children, className, variant = 'primary', isLoading, ..
 
     return (
         <button
-            className={clsx(baseClass, variants[variant], isLoading && 'opacity-70 cursor-not-allowed', className)}
+            className={cn(baseClass, variants[variant], isLoading && 'opacity-70 cursor-not-allowed', className)}
             disabled={isLoading || props.disabled}
             {...props}
         >
