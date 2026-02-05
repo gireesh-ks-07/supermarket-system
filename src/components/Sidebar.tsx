@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, ShoppingCart, Package, Users, BarChart3, Truck, Settings, Shield, X } from 'lucide-react'
+import { LayoutDashboard, ShoppingCart, Package, Users, BarChart3, Truck, Settings, Shield, X, Receipt } from 'lucide-react'
 import { clsx } from 'clsx'
 import { motion } from 'framer-motion'
 
@@ -12,6 +12,7 @@ import { useUser } from '@/hooks/useUser'
 const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard', roles: ['ADMIN', 'STOCK_MANAGER', 'BILLING_STAFF'] },
     { icon: ShoppingCart, label: 'POS Billing', href: '/dashboard/pos', roles: ['ADMIN', 'STOCK_MANAGER', 'BILLING_STAFF'] },
+    { icon: Receipt, label: 'Sales History', href: '/dashboard/sales', roles: ['ADMIN', 'STOCK_MANAGER', 'BILLING_STAFF'] },
     { icon: Package, label: 'Products', href: '/dashboard/products', roles: ['ADMIN', 'STOCK_MANAGER', 'BILLING_STAFF'] },
     { icon: Truck, label: 'Stock & Suppliers', href: '/dashboard/stock', roles: ['ADMIN', 'STOCK_MANAGER', 'BILLING_STAFF'] },
     { icon: BarChart3, label: 'Reports', href: '/dashboard/reports', roles: ['ADMIN', 'STOCK_MANAGER'] },

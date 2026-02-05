@@ -124,3 +124,98 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: error.message || 'Failed to process sale' }, { status: 400 })
     }
 }
+
+export async function GET(request: Request) {
+    const { searchParams } = new URL(request.url)
+    const period = searchParams.get('period') || 'day'
+    const date = searchParams.get('date')
+    const month = searchParams.get('month')
+    const year = searchParams.get('year')
+    const from = searchParams.get('from')
+    const to = searchParams.get('to')
+    const paymentMode = searchParams.get('paymentMode')
+
+    const cookieStore = await cookies()
+    const token = cookieStore.get('auth-token')?.value
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    let supermarketId
+    try {
+        const decoded = jwt.verify(token, SECRET_KEY) as any
+        supermarketId = decoded.supermarketId
+    } catch (e) { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
+
+    const where: any = {
+        supermarketId
+    }
+
+    // Payment Mode Filter
+    if (paymentMode && paymentMode !== 'ALL') {
+        where.paymentMode = paymentMode
+    }
+
+    // Date Filter
+    const now = new Date()
+    let startDate = new Date()
+    let endDate = new Date()
+
+    if (period === 'day') {
+        if (date) startDate = new Date(date)
+        startDate.setHours(0, 0, 0, 0)
+        endDate = new Date(startDate)
+        endDate.setHours(23, 59, 59, 999)
+    } else if (period === 'month') {
+        if (month) startDate = new Date(`${month}-01`)
+        else startDate.setDate(1) // Start of current month
+        startDate.setHours(0, 0, 0, 0)
+
+        endDate = new Date(startDate)
+        endDate.setMonth(endDate.getMonth() + 1)
+        endDate.setDate(0) // Last day of month
+        endDate.setHours(23, 59, 59, 999)
+    } else if (period === 'year') {
+        if (year) startDate = new Date(`${year}-01-01`)
+        else startDate.setMonth(0, 1) // Start of current year
+        startDate.setHours(0, 0, 0, 0)
+
+        endDate = new Date(startDate)
+        endDate.setFullYear(endDate.getFullYear() + 1)
+        endDate.setDate(0)
+        endDate.setHours(23, 59, 59, 999)
+    } else if (period === 'custom' && from && to) {
+        startDate = new Date(from)
+        endDate = new Date(to)
+        endDate.setHours(23, 59, 59, 999)
+    }
+
+    where.date = {
+        gte: startDate,
+        lte: endDate
+    }
+
+    try {
+        const sales = await prisma.sale.findMany({
+            where,
+            include: {
+                items: {
+                    include: {
+                        product: true
+                    }
+                },
+                cashier: {
+                    select: { name: true }
+                },
+                customer: {
+                    select: { name: true, flatNumber: true }
+                }
+            },
+            orderBy: {
+                date: 'desc'
+            }
+        })
+
+        return NextResponse.json(sales)
+    } catch (e: any) {
+        return NextResponse.json({ error: e.message }, { status: 500 })
+    }
+}
