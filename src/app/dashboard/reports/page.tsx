@@ -38,6 +38,7 @@ export default function ReportsPage() {
     const [showPaymentModal, setShowPaymentModal] = useState(false)
     const [paymentAmount, setPaymentAmount] = useState('')
     const [paymentNote, setPaymentNote] = useState('')
+    const [paymentMethod, setPaymentMethod] = useState('CASH')
     const [submittingPayment, setSubmittingPayment] = useState(false)
     const [availableFlats, setAvailableFlats] = useState<string[]>([])
 
@@ -90,7 +91,8 @@ export default function ReportsPage() {
                 body: JSON.stringify({
                     customerId: reportData.customer.id,
                     amount: Number(paymentAmount),
-                    note: paymentNote
+                    note: paymentNote,
+                    paymentMode: paymentMethod
                 })
             })
 
@@ -625,60 +627,79 @@ export default function ReportsPage() {
             )
             }
             {/* Payment Modal */}
-            {
-                showPaymentModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                        <Card className="w-full max-w-md bg-[#1e293b] border-white/10">
-                            <div className="p-6 space-y-4">
-                                <h2 className="text-xl font-bold text-white">Record Payment</h2>
-                                <p className="text-sm text-slate-400">Record a payment from Flat {reportData?.customer?.flatNumber}</p>
+            {showPaymentModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <Card className="w-full max-w-md bg-[#1e293b] border-white/10">
+                        <div className="p-6 space-y-4">
+                            <h2 className="text-xl font-bold text-white">Record Payment</h2>
+                            <p className="text-sm text-slate-400">Record a payment from Flat {reportData?.customer?.flatNumber}</p>
 
-                                <form onSubmit={handlePayment} className="space-y-4">
-                                    <div>
-                                        <label className="block text-sm text-slate-400 mb-1">Amount</label>
-                                        <Input
-                                            type="number"
-                                            step="0.01"
-                                            required
-                                            value={paymentAmount}
-                                            onChange={e => setPaymentAmount(e.target.value)}
-                                            className="bg-white/10 border-transparent text-lg font-bold"
-                                            placeholder="0.00"
-                                            autoFocus
-                                        />
-                                        <div className="flex gap-2 mt-2">
+                            <form onSubmit={handlePayment} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm text-slate-400 mb-1">Amount</label>
+                                    <Input
+                                        type="number"
+                                        step="0.01"
+                                        required
+                                        value={paymentAmount}
+                                        onChange={e => setPaymentAmount(e.target.value)}
+                                        className="bg-white/10 border-transparent text-lg font-bold"
+                                        placeholder="0.00"
+                                        autoFocus
+                                    />
+                                    <div className="flex gap-2 mt-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setPaymentAmount(reportData.balance.toString())}
+                                            className="text-xs bg-white/10 hover:bg-white/20 px-2 py-1 rounded text-purple-400"
+                                        >
+                                            Pay Full Due ({formatCurrency(reportData.balance)})
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm text-slate-400 mb-1">Note (Optional)</label>
+                                    <Input
+                                        value={paymentNote}
+                                        onChange={e => setPaymentNote(e.target.value)}
+                                        className="bg-white/10 border-transparent"
+                                        placeholder="e.g. UPI Ref..."
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm text-slate-400 mb-1">Payment Method</label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {['CASH', 'UPI', 'CARD'].map(mode => (
                                             <button
                                                 type="button"
-                                                onClick={() => setPaymentAmount(reportData.balance.toString())}
-                                                className="text-xs bg-white/10 hover:bg-white/20 px-2 py-1 rounded text-purple-400"
+                                                key={mode}
+                                                onClick={() => setPaymentMethod(mode)}
+                                                className={`px-3 py-2 rounded text-sm font-bold border transition-all ${paymentMethod === mode
+                                                    ? 'bg-purple-500 border-purple-500 text-white shadow-lg shadow-purple-900/50'
+                                                    : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'
+                                                    }`}
                                             >
-                                                Pay Full Due ({formatCurrency(reportData.balance)})
+                                                {mode}
                                             </button>
-                                        </div>
+                                        ))}
                                     </div>
-                                    <div>
-                                        <label className="block text-sm text-slate-400 mb-1">Note (Optional)</label>
-                                        <Input
-                                            value={paymentNote}
-                                            onChange={e => setPaymentNote(e.target.value)}
-                                            className="bg-white/10 border-transparent"
-                                            placeholder="e.g. UPI Ref..."
-                                        />
-                                    </div>
-                                    <div className="flex justify-end gap-3 pt-4">
-                                        <Button type="button" variant="secondary" onClick={() => setShowPaymentModal(false)}>
-                                            Cancel
-                                        </Button>
-                                        <Button type="submit" className="bg-green-600 hover:bg-green-500" isLoading={submittingPayment}>
-                                            Confirm Payment
-                                        </Button>
-                                    </div>
-                                </form>
-                            </div>
-                        </Card>
-                    </div>
-                )
-            }
-        </div >
+                                </div>
+
+                                <div className="flex justify-end gap-3 pt-4">
+                                    <Button type="button" variant="secondary" onClick={() => setShowPaymentModal(false)}>
+                                        Cancel
+                                    </Button>
+                                    <Button type="submit" className="bg-green-600 hover:bg-green-500" isLoading={submittingPayment}>
+                                        Confirm Payment
+                                    </Button>
+                                </div>
+                            </form>
+                        </div>
+                    </Card>
+                </div>
+            )}
+        </div>
     )
 }

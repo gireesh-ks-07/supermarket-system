@@ -160,7 +160,8 @@ model Sale {
   totalAmount   Decimal
   
   paymentMode   String      // CASH, UPI, CARD
-  
+  originalPaymentMode String? // To track if it was originally CREDIT then settled
+
   items         SaleItem[]
   
   customerId    String?
@@ -222,6 +223,7 @@ model Payment {
   date          DateTime    @default(now())
   note          String?
   type          String      @default("CREDIT_PAYMENT")
+  paymentMode   String      @default("CASH") // CASH, UPI, CARD
 }
 
 // 11. Expense Management
