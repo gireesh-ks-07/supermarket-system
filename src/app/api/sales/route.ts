@@ -116,6 +116,9 @@ export async function POST(request: Request) {
             }
 
             return sale
+        }, {
+            maxWait: 5000, // default: 2000
+            timeout: 20000 // default: 5000
         })
 
         return NextResponse.json({ success: true, invoice: result })
