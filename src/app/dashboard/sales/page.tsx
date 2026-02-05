@@ -141,9 +141,15 @@ export default function SalesHistoryPage() {
                     </select>
                 </div>
 
-                <div className="ml-auto flex items-center gap-2 px-4 py-1 bg-green-500/10 border border-green-500/20 rounded-lg">
-                    <span className="text-xs text-green-400 font-bold uppercase">Total Revenue</span>
-                    <span className="text-lg font-bold text-green-400">{formatCurrency(getTotalRevenue())}</span>
+                <div className="flex items-center gap-4 ml-4 pl-4 border-l border-white/10">
+                    <div className="flex flex-col">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Invoices</span>
+                        <span className="text-sm font-bold text-white">{sales.length}</span>
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Revenue</span>
+                        <span className="text-sm font-bold text-green-400">{formatCurrency(getTotalRevenue())}</span>
+                    </div>
                 </div>
             </Card>
 
