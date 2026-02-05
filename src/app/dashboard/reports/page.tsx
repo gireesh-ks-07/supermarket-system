@@ -340,7 +340,18 @@ export default function ReportsPage() {
                             </div>
                             <div>
                                 <p className="text-slate-400 text-sm">Digital Pay</p>
-                                <h3 className="text-2xl font-bold text-white">--</h3>
+                                <h3 className="text-2xl font-bold text-white">
+                                    {businessLoading ? '...' : (
+                                        (() => {
+                                            const totalRev = businessData?.revenue || 0
+                                            if (totalRev === 0) return '0%'
+                                            const digitalRev = businessData?.paymentStats
+                                                ?.filter((p: any) => p.mode !== 'CASH')
+                                                ?.reduce((acc: number, p: any) => acc + p.amount, 0) || 0
+                                            return `${Math.round((digitalRev / totalRev) * 100)}%`
+                                        })()
+                                    )}
+                                </h3>
                             </div>
                         </Card>
 
@@ -352,7 +363,13 @@ export default function ReportsPage() {
                             </div>
                             <div>
                                 <p className="text-slate-400 text-sm">Avg. Order</p>
-                                <h3 className="text-2xl font-bold text-white">--</h3>
+                                <h3 className="text-2xl font-bold text-white">
+                                    {businessLoading ? '...' : (
+                                        formatCurrency(
+                                            (businessData?.revenue || 0) / (businessData?.salesCount || 1)
+                                        )
+                                    )}
+                                </h3>
                             </div>
                         </Card>
                     </div>
