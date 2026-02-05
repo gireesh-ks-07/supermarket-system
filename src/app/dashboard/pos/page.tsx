@@ -93,8 +93,7 @@ export default function POSPage() {
     }
 
     const subTotal = cart.reduce((acc, item) => acc + item.total, 0)
-    const tax = subTotal * 0.1 // Approx for demo
-    const total = subTotal + tax
+    const total = subTotal
 
     const handleCheckout = async (mode: string) => {
         if (cart.length === 0) return
@@ -382,10 +381,6 @@ export default function POSPage() {
                             <div className="flex justify-between">
                                 <span>Subtotal</span>
                                 <span>{formatCurrency(subTotal)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Tax (10%)</span>
-                                <span>{formatCurrency(tax)}</span>
                             </div>
                             <div className="flex justify-between items-end pt-4 border-t border-white/10">
                                 <span className="text-lg">Total Payable</span>

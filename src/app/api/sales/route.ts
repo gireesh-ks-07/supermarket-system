@@ -62,8 +62,8 @@ export async function POST(request: Request) {
                     invoiceNumber: `INV-${Date.now()}`,
                     paymentMode,
                     subTotal: totalAmount,
-                    taxTotal: totalAmount * 0.1, // Dummy tax logic
-                    totalAmount: totalAmount * 1.1,
+                    taxTotal: 0,
+                    totalAmount: totalAmount,
                     customerId,
                     items: {
                         create: items.map((item: any) => ({
