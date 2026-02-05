@@ -103,9 +103,12 @@ export async function POST(request: Request) {
                     // Avoid negative zero or micro-values
                     if (deduct <= 0) continue
 
+                    const newBatchQty = batch.quantity - deduct
+                    console.log(`[Stock Update] Product: ${item.name}, Batch: ${batch.batchNumber}, Deducting: ${deduct}, OldQty: ${batch.quantity}, NewQty: ${newBatchQty}`)
+
                     await tx.productBatch.update({
                         where: { id: batch.id },
-                        data: { quantity: { decrement: deduct } }
+                        data: { quantity: Math.max(0, newBatchQty) }
                     })
 
                     remainingQty -= deduct
