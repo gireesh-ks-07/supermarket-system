@@ -60,6 +60,11 @@ export async function GET(request: Request) {
         startDate.setDate(1)
         startDate.setHours(0, 0, 0, 0)
         dateFormat = 'month'
+    } else if (period === 'yearly') {
+        // Current Year (Jan 1 to Now)
+        startDate = new Date(now.getFullYear(), 0, 1)
+        startDate.setHours(0, 0, 0, 0)
+        dateFormat = 'month'
     }
 
     // Common WHERE clause
@@ -85,8 +90,7 @@ export async function GET(request: Request) {
 
     if (period === 'custom') {
         // Hourly Breakdown (00 to 23)
-        // Note: This relies on server timezone. Ideally we'd match UTC hours if input is UTC.
-        // Assuming consistent timezone for MVP.
+        // ... (existing code)
         for (let i = 0; i < 24; i++) {
             const label = i === 0 ? '12 AM' : i < 12 ? `${i} AM` : i === 12 ? '12 PM' : `${i - 12} PM`
 
@@ -97,7 +101,7 @@ export async function GET(request: Request) {
             chartData.push({ label, value: total })
         }
     } else if (period === 'daily') {
-        // Last 7 Days
+        // ... (existing code)
         for (let i = 0; i < 7; i++) {
             const d = new Date(startDate)
             d.setDate(d.getDate() + i)
@@ -111,7 +115,7 @@ export async function GET(request: Request) {
             chartData.push({ label, value: total })
         }
     } else if (period === 'weekly') {
-        // Last 4 Weeks (Groups of 7 days)
+        // ... (existing code)
         for (let i = 0; i < 4; i++) {
             const weekStart = new Date(startDate)
             weekStart.setDate(weekStart.getDate() + (i * 7))
@@ -129,11 +133,19 @@ export async function GET(request: Request) {
 
             chartData.push({ label, value: total })
         }
-    } else if (period === 'monthly') {
-        // Last 12 Months
-        for (let i = 0; i < 12; i++) {
+    } else if (period === 'monthly' || period === 'yearly') {
+        // Monthly Breakdown
+        const months = period === 'monthly' ? 12 : 12 // For yearly, we might want just Jan-Dec of current year, or up to now. 
+        // Logic for 'yearly' (Jan to Dec):
+        const limit = period === 'monthly' ? 12 : 12
+
+        for (let i = 0; i < limit; i++) {
             const d = new Date(startDate)
             d.setMonth(d.getMonth() + i)
+
+            // For yearly, avoid going into future if startDate is Jan 1st
+            if (period === 'yearly' && d.getFullYear() > now.getFullYear()) break
+
             const label = d.toLocaleDateString('en-US', { month: 'short' }) // Jan
             const monthKey = `${d.getFullYear()}-${d.getMonth()}`
 
