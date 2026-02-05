@@ -53,7 +53,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <div className="p-6 border-b border-white/5 flex justify-between items-center">
                     <div>
                         <h1 className="text-xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-                            Antigravity
+                            BeNostra
                         </h1>
                         <p className="text-xs text-slate-400">Supermarket OS</p>
                     </div>

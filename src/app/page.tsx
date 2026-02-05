@@ -58,7 +58,7 @@ export default function LoginPage() {
                     </div>
                 </div>
                 <h1 className="text-4xl font-bold text-center mb-2 tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-                    Antigravity POS
+                    BeNostra
                 </h1>
                 <p className="text-center text-slate-400 mb-8">Supermarket Management System</p>
 
