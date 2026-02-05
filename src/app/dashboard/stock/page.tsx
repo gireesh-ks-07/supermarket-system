@@ -5,7 +5,8 @@ import useSWR, { mutate } from 'swr'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Truck, Plus, Search, Archive, AlertTriangle, User, X, Trash2, Edit2, Pause, Play, Download } from 'lucide-react'
+import { Truck, Plus, Search, Archive, AlertTriangle, User, X, Trash2, Edit2, Pause, Play, Download, Upload } from 'lucide-react'
+import Papa from 'papaparse'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { formatCurrency } from '@/lib/utils'
@@ -183,6 +184,66 @@ function InventoryView() {
         toast.success("Low stock report downloaded")
     }
 
+    const downloadStockTemplate = () => {
+        const headers = ['barcode', 'batchNumber', 'quantity', 'expiryDate']
+        const csvContent = "data:text/csv;charset=utf-8," + headers.join(",")
+        const encodedUri = encodeURI(csvContent)
+        const link = document.createElement("a")
+        link.setAttribute("href", encodedUri)
+        link.setAttribute("download", "stock_import_template.csv")
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+    }
+
+    const fileInputRef = React.useRef<HTMLInputElement>(null)
+
+    const handleStockImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: async (results) => {
+                if (results.data.length === 0) {
+                    toast.error('CSV is empty')
+                    return
+                }
+
+                const loadingToast = toast.loading(`Importing ${results.data.length} batches...`)
+                try {
+                    const res = await fetch('/api/stock/import', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(results.data)
+                    })
+
+                    if (res.ok) {
+                        const data = await res.json()
+                        if (data.failed > 0) {
+                            toast.warning(`Imported: ${data.imported}, Failed: ${data.failed}. Check console for errors.`)
+                            console.error("Import Errors:", data.errors)
+                        } else {
+                            toast.success(`Successfully imported ${data.imported} batches`)
+                        }
+                        mutate('/api/stock/batches')
+                    } else {
+                        toast.error('Import failed')
+                    }
+                } catch (err) {
+                    toast.error('Network error during import')
+                } finally {
+                    toast.dismiss(loadingToast)
+                    if (fileInputRef.current) fileInputRef.current.value = ''
+                }
+            },
+            error: () => {
+                toast.error('Failed to parse CSV file')
+            }
+        })
+    }
+
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-4 gap-4">
@@ -233,15 +294,39 @@ function InventoryView() {
                             <Download size={16} className="mr-2" /> Low Stock CSV
                         </Button>
                         {canManageStock && (
-                            <Button onClick={() => {
-                                setEditBatchId(null)
-                                setFormData({ productId: '', batchNumber: '', quantity: '1', expiryDate: '' })
-                                setIsAddModalOpen(true)
-                            }}>
-                                <Plus size={16} className="mr-2" /> Add New Stock
-                            </Button>
+                            <>
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    className="hidden"
+                                    accept=".csv"
+                                    onChange={handleStockImport}
+                                />
+                                <Button
+                                    variant="secondary"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="text-xs sm:text-sm"
+                                >
+                                    <Upload size={16} className="mr-2" /> Import CSV
+                                </Button>
+                                <Button onClick={() => {
+                                    setEditBatchId(null)
+                                    setFormData({ productId: '', batchNumber: '', quantity: '1', expiryDate: '' })
+                                    setIsAddModalOpen(true)
+                                }}>
+                                    <Plus size={16} className="mr-2" /> Add New Stock
+                                </Button>
+                            </>
                         )}
                     </div>
+                </div>
+                <div className="px-4 pb-2">
+                    <button
+                        onClick={downloadStockTemplate}
+                        className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-colors"
+                    >
+                        + Download CSV Template for Stock Import
+                    </button>
                 </div>
                 {
                     isLoading ? (

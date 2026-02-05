@@ -270,9 +270,19 @@ export default function POSPage() {
                                     <p className="text-xs text-slate-500">{item.barcode}</p>
                                 </div>
                                 <div className="hidden md:block col-span-2 text-center text-slate-400">{formatCurrency(item.sellingPrice)}</div>
-                                <div className="col-span-3 md:col-span-2 flex items-center justify-center gap-2">
+                                <div className="col-span-3 md:col-span-2 flex items-center justify-center gap-1">
                                     <button onClick={() => updateQuantity(item.id, -1)} className="p-1 hover:bg-white/10 rounded"><Minus size={14} /></button>
-                                    <span className="w-6 text-center">{item.quantity}</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.001"
+                                        value={item.quantity}
+                                        onChange={(e) => {
+                                            const val = Math.max(0, parseFloat(e.target.value) || 0)
+                                            setCart(prev => prev.map(p => p.id === item.id ? { ...p, quantity: val, total: val * Number(p.sellingPrice) } : p))
+                                        }}
+                                        className="w-16 bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-center text-sm focus:border-purple-500 outline-none"
+                                    />
                                     <button onClick={() => updateQuantity(item.id, 1)} className="p-1 hover:bg-white/10 rounded"><Plus size={14} /></button>
                                 </div>
                                 <div className="col-span-3 md:col-span-2 text-right font-bold text-green-400 flex items-center justify-end gap-2">
