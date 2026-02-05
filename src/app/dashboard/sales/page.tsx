@@ -233,9 +233,9 @@ export default function SalesHistoryPage() {
                             <Button
                                 variant="ghost"
                                 onClick={() => setSelectedSale(null)}
-                                className="h-8 w-8 p-0 rounded-full bg-white/10 text-white hover:bg-white/20"
+                                className="h-8 w-8 p-0 rounded-full text-slate-400 hover:text-white hover:bg-white/10"
                             >
-                                <X size={18} />
+                                <X size={20} />
                             </Button>
                         </div>
 
