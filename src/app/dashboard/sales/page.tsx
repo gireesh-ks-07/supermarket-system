@@ -171,7 +171,7 @@ export default function SalesHistoryPage() {
                             sales.map((sale) => (
                                 <div key={sale.id} className="grid grid-cols-12 gap-4 p-4 border-b border-white/5 items-center text-sm hover:bg-white/5 transition-colors">
                                     <div className="col-span-2 text-slate-300">
-                                        <p>{new Date(sale.date).toLocaleDateString()}</p>
+                                        <p>{new Date(sale.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '/')}</p>
                                         <p className="text-xs text-slate-500">{new Date(sale.date).toLocaleTimeString()}</p>
                                     </div>
                                     <div className="col-span-2 font-mono text-xs">{sale.invoiceNumber}</div>
@@ -201,8 +201,8 @@ export default function SalesHistoryPage() {
                                     </div>
                                     <div className="col-span-1 text-center">
                                         <Button
-                                            variant="secondary"
-                                            className="h-8 w-8 p-0 rounded-full"
+                                            variant="ghost"
+                                            className="h-8 w-8 p-0 rounded-full bg-white/10 text-white hover:bg-white/20"
                                             onClick={() => setSelectedSale(sale)}
                                         >
                                             <ArrowUpRight size={16} />
@@ -224,7 +224,11 @@ export default function SalesHistoryPage() {
                                 <h3 className="font-bold text-lg text-white">Sale Details</h3>
                                 <p className="text-sm text-slate-400 font-mono">{selectedSale.invoiceNumber}</p>
                             </div>
-                            <Button variant="secondary" onClick={() => setSelectedSale(null)} className="h-8 w-8 p-0 rounded-full">
+                            <Button
+                                variant="ghost"
+                                onClick={() => setSelectedSale(null)}
+                                className="h-8 w-8 p-0 rounded-full bg-white/10 text-white hover:bg-white/20"
+                            >
                                 <X size={18} />
                             </Button>
                         </div>
@@ -233,7 +237,7 @@ export default function SalesHistoryPage() {
                             <div className="grid grid-cols-2 gap-4 text-sm">
                                 <div className="p-3 rounded-lg bg-white/5 space-y-1">
                                     <p className="text-slate-500 text-xs uppercase font-bold">Date & Time</p>
-                                    <p className="text-white">{new Date(selectedSale.date).toLocaleString()}</p>
+                                    <p className="text-white">{new Date(selectedSale.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '/')} {new Date(selectedSale.date).toLocaleTimeString()}</p>
                                 </div>
                                 <div className="p-3 rounded-lg bg-white/5 space-y-1">
                                     <p className="text-slate-500 text-xs uppercase font-bold">Cashier</p>
@@ -290,7 +294,7 @@ export default function SalesHistoryPage() {
                         </div>
 
                         <div className="p-4 border-t border-white/10 bg-white/5 flex justify-end">
-                            <Button onClick={() => setSelectedSale(null)}>Close</Button>
+                            <Button onClick={() => setSelectedSale(null)} className="bg-white/10 hover:bg-white/20 text-white">Close</Button>
                         </div>
                     </Card>
                 </div>

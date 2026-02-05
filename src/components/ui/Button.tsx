@@ -2,7 +2,7 @@ import React from 'react'
 import clsx from 'clsx'
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-    variant?: 'primary' | 'secondary' | 'danger'
+    variant?: 'primary' | 'secondary' | 'danger' | 'ghost'
     isLoading?: boolean
 }
 
@@ -11,7 +11,8 @@ export function Button({ children, className, variant = 'primary', isLoading, ..
     const variants = {
         primary: 'btn-primary',
         secondary: 'bg-slate-700 text-white hover:bg-slate-600',
-        danger: 'bg-red-500 text-white hover:bg-red-600'
+        danger: 'bg-red-500 text-white hover:bg-red-600',
+        ghost: 'bg-transparent hover:bg-white/10 text-slate-300 hover:text-white'
     }
 
     return (
