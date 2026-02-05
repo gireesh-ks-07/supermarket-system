@@ -82,10 +82,27 @@ export async function GET(request: Request) {
         let totalRevenue = 0
         let totalCost = 0
         let totalProfit = 0
-        const chartData = []
 
-        // Grouping for Chart
-        const groupedData: Record<string, { revenue: number, profit: number }> = {}
+        // Initialize Chart Data Buckets
+        const groupedData: Record<string, { revenue: number, profit: number, sortIndex: number }> = {}
+
+        if (period === 'daily' || period === 'custom') {
+            for (let i = 0; i < 24; i++) {
+                const label = i === 0 ? '12 AM' : i < 12 ? `${i} AM` : i === 12 ? '12 PM' : `${i - 12} PM`
+                groupedData[label] = { revenue: 0, profit: 0, sortIndex: i }
+            }
+        } else if (period === 'monthly') {
+            const daysInMonth = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0).getDate()
+            for (let i = 1; i <= daysInMonth; i++) {
+                const label = i.toString()
+                groupedData[label] = { revenue: 0, profit: 0, sortIndex: i }
+            }
+        } else if (period === 'yearly') {
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+            months.forEach((m, i) => {
+                groupedData[m] = { revenue: 0, profit: 0, sortIndex: i }
+            })
+        }
 
         for (const sale of sales) {
             let saleCost = 0
@@ -104,22 +121,24 @@ export async function GET(request: Request) {
             const d = new Date(sale.date)
 
             if (period === 'daily' || period === 'custom') {
-                key = d.getHours() + ':00'
+                const h = d.getHours()
+                key = h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`
             } else if (period === 'monthly') {
                 key = d.getDate().toString()
             } else if (period === 'yearly') {
                 key = d.toLocaleString('default', { month: 'short' })
             }
 
-            if (!groupedData[key]) groupedData[key] = { revenue: 0, profit: 0 }
-            groupedData[key].revenue += Number(sale.totalAmount)
-            groupedData[key].profit += profit
+            if (groupedData[key]) {
+                groupedData[key].revenue += Number(sale.totalAmount)
+                groupedData[key].profit += profit
+            }
         }
 
-        // Format Chart Data
-        for (const [label, data] of Object.entries(groupedData)) {
-            chartData.push({ label, revenue: data.revenue, profit: data.profit })
-        }
+        // Format and Sort Chart Data
+        const chartData = Object.entries(groupedData)
+            .sort(([, a], [, b]) => a.sortIndex - b.sortIndex)
+            .map(([label, data]) => ({ label, revenue: data.revenue, profit: data.profit }))
 
         return NextResponse.json({
             totalRevenue,
