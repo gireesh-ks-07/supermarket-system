@@ -26,6 +26,7 @@ model Supermarket {
   purchases Purchase[]
   customers Customer[]
   payments  Payment[]
+  expenses  Expense[]
   notifications Notification[]
 }
 
@@ -42,6 +43,7 @@ model User {
   pin           String? // For quick login
 
   sales         Sale[] // Sales performed by this user (Cashier)
+  expenses      Expense[]
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -220,4 +222,23 @@ model Payment {
   date          DateTime    @default(now())
   note          String?
   type          String      @default("CREDIT_PAYMENT")
+}
+
+// 11. Expense Management
+model Expense {
+  id            String      @id @default(uuid())
+  supermarketId String
+  supermarket   Supermarket @relation(fields: [supermarketId], references: [id])
+
+  title         String
+  amount        Decimal
+  category      String      // Rent, Electricity, Salaries, Maintenance, Miscellaneous, etc.
+  date          DateTime    @default(now())
+  note          String?
+
+  userId        String?
+  user          User?       @relation(fields: [userId], references: [id])
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 }
