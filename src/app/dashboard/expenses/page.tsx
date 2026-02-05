@@ -258,14 +258,27 @@ export default function ExpensesPage() {
                                 <div>
                                     <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Category</label>
                                     <select
-                                        value={newExpense.category}
-                                        onChange={e => setNewExpense({ ...newExpense, category: e.target.value })}
+                                        value={['Rent', 'Electricity', 'Water', 'Salaries', 'Maintenance', 'Internet', 'Purchase', 'Transportation', 'Miscellaneous'].includes(newExpense.category) ? newExpense.category : 'Other'}
+                                        onChange={e => {
+                                            const val = e.target.value
+                                            setNewExpense({ ...newExpense, category: val === 'Other' ? '' : val })
+                                        }}
                                         className="w-full bg-slate-950 border border-slate-800 rounded-md p-2 text-white focus:outline-none focus:border-purple-500 transition-colors"
                                     >
-                                        {['Rent', 'Electricity', 'Water', 'Salaries', 'Maintenance', 'Internet', 'Purchase', 'Transportation', 'Miscellaneous'].map(c => (
+                                        {['Rent', 'Electricity', 'Water', 'Salaries', 'Maintenance', 'Internet', 'Purchase', 'Transportation', 'Miscellaneous', 'Other'].map(c => (
                                             <option key={c} value={c}>{c}</option>
                                         ))}
                                     </select>
+                                    {!['Rent', 'Electricity', 'Water', 'Salaries', 'Maintenance', 'Internet', 'Purchase', 'Transportation', 'Miscellaneous'].includes(newExpense.category) && (
+                                        <input
+                                            type="text"
+                                            placeholder="Enter Custom Category"
+                                            value={newExpense.category}
+                                            onChange={e => setNewExpense({ ...newExpense, category: e.target.value })}
+                                            className="w-full mt-2 bg-slate-950 border border-slate-800 rounded-md p-2 text-white focus:outline-none focus:border-purple-500 transition-colors text-sm"
+                                            autoFocus
+                                        />
+                                    )}
                                 </div>
                             </div>
 
