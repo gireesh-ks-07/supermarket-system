@@ -4,10 +4,11 @@ import React, { useState } from 'react'
 import useSWR from 'swr'
 import { Plus, Search, Calendar, Filter, X, Wallet, Tag } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
-import Button from '@/components/ui/Button'
+import { Button } from '@/components/ui/Button'
 import { useUser } from '@/hooks/useUser'
 import { toast } from 'sonner'
 import { formatCurrency } from '@/lib/utils'
+import { motion } from 'framer-motion'
 
 export default function ExpensesPage() {
     const { user } = useUser()
