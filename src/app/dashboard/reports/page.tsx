@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/Input'
 import {
     BarChart3, Calendar, TrendingUp, DollarSign,
     CreditCard, ShoppingBag, ArrowUpRight, ArrowDownRight,
-    Search, FileText, PieChart
+    Search, FileText, PieChart, Banknote, QrCode
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 
@@ -670,17 +670,18 @@ export default function ReportsPage() {
 
                                 <div>
                                     <label className="block text-sm text-slate-400 mb-1">Payment Method</label>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        {['CASH', 'UPI', 'CARD'].map(mode => (
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {['CASH', 'UPI'].map(mode => (
                                             <button
                                                 type="button"
                                                 key={mode}
                                                 onClick={() => setPaymentMethod(mode)}
-                                                className={`px-3 py-2 rounded text-sm font-bold border transition-all ${paymentMethod === mode
+                                                className={`px-3 py-3 rounded-lg text-sm font-bold border transition-all flex items-center justify-center gap-2 ${paymentMethod === mode
                                                     ? 'bg-purple-500 border-purple-500 text-white shadow-lg shadow-purple-900/50'
                                                     : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'
                                                     }`}
                                             >
+                                                {mode === 'CASH' ? <Banknote size={18} /> : <QrCode size={18} />}
                                                 {mode}
                                             </button>
                                         ))}
