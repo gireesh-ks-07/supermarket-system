@@ -44,33 +44,29 @@ export default function StockPage() {
     }
 
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
+        <div className="space-y-4 md:space-y-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+                    <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent tracking-tight">
                         Stock & Suppliers
                     </h1>
-                    <p className="text-sm text-slate-400">Manage inventory flow and vendor relationships</p>
+                    <p className="text-sm md:text-sm text-slate-500 font-bold transition-all mt-0.5">Inventory flow & vendor records</p>
                 </div>
-                <div className="flex bg-slate-900/50 p-1 rounded-lg border border-slate-800">
-                    <button
-                        onClick={() => setView('inventory')}
-                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${view === 'inventory' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}
-                    >
-                        Inventory & Batches
-                    </button>
-                    <button
-                        onClick={() => setView('suppliers')}
-                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${view === 'suppliers' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}
-                    >
-                        Supplier Directory
-                    </button>
-                    <button
-                        onClick={() => setView('purchases')}
-                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${view === 'purchases' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}
-                    >
-                        Purchase Orders
-                    </button>
+                <div className="flex bg-slate-900/60 p-1 rounded-xl border border-white/5 w-full md:w-auto overflow-x-auto no-scrollbar">
+                    {[
+                        { id: 'inventory', label: 'Inventory', icon: Archive },
+                        { id: 'suppliers', label: 'Suppliers', icon: User },
+                        { id: 'purchases', label: 'Purchases', icon: Truck }
+                    ].map((t) => (
+                        <button
+                            key={t.id}
+                            onClick={() => setView(t.id as any)}
+                            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-all whitespace-nowrap ${view === t.id ? 'bg-purple-600 text-white shadow-lg shadow-purple-900/40' : 'text-slate-500 hover:text-white'}`}
+                        >
+                            <t.icon size={14} className="md:hidden" />
+                            {t.label}
+                        </button>
+                    ))}
                 </div>
             </div>
 
@@ -246,55 +242,61 @@ function InventoryView() {
 
     return (
         <div className="space-y-6">
-            <div className="grid grid-cols-4 gap-4">
-                <Card className="p-4 flex items-center justify-between bg-emerald-500/5 border-emerald-500/20">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <Card className="p-4 flex items-center justify-between bg-emerald-500/5 border-emerald-500/10 shadow-lg shadow-emerald-900/5">
                     <div>
-                        <p className="text-emerald-400 text-sm font-medium">Total Batches</p>
+                        <p className="text-sm text-emerald-500 font-bold transition-all">Total Batches</p>
                         <h3 className="text-2xl font-bold text-white">{batches?.length || 0}</h3>
-                        <p className="text-xs text-slate-500">Active lots</p>
+                        <p className="text-sm text-slate-500 font-medium">Active inventory lots</p>
                     </div>
-                    <Archive className="text-emerald-500" size={24} />
+                    <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500">
+                        <Archive size={24} />
+                    </div>
                 </Card>
-                <Card className="p-4 flex items-center justify-between bg-yellow-500/5 border-yellow-500/20">
+                <Card className="p-4 flex items-center justify-between bg-yellow-500/5 border-yellow-500/10 shadow-lg shadow-yellow-900/5">
                     <div>
-                        <p className="text-yellow-400 text-sm font-medium">Low Stock Batches</p>
+                        <p className="text-sm text-yellow-500 font-bold transition-all">Low Stock</p>
                         <h3 className="text-2xl font-bold text-white">{lowStock}</h3>
-                        <p className="text-xs text-slate-500">Below 10 units</p>
+                        <p className="text-sm text-slate-500 font-medium">Below 10 units alert</p>
                     </div>
-                    <AlertTriangle className="text-yellow-500" size={24} />
+                    <div className="p-3 bg-yellow-500/10 rounded-2xl text-yellow-500">
+                        <AlertTriangle size={24} />
+                    </div>
                 </Card>
-                <Card className="p-4 flex items-center justify-between bg-red-500/5 border-red-500/20">
+                <Card className="p-4 flex items-center justify-between bg-red-500/5 border-red-500/10 shadow-lg shadow-red-900/5 sm:col-span-2 lg:col-span-1">
                     <div>
-                        <p className="text-red-400 text-sm font-medium">Expiring Soon</p>
+                        <p className="text-sm text-red-500 font-bold transition-all">Expiring Soon</p>
                         <h3 className="text-2xl font-bold text-white">{expiringSoon}</h3>
-                        <p className="text-xs text-slate-500">In 30 days</p>
+                        <p className="text-sm text-slate-500 font-medium">Within next 30 days</p>
                     </div>
-                    <AlertTriangle className="text-red-500" size={24} />
+                    <div className="p-3 bg-red-500/10 rounded-2xl text-red-500">
+                        <AlertTriangle size={24} />
+                    </div>
                 </Card>
             </div>
 
-            <Card className="p-0 overflow-hidden min-h-[400px]">
-                <div className="p-4 border-b border-white/5 flex flex-wrap gap-4 justify-between items-center">
-                    <div className="relative w-64">
-                        <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
+            <Card className="p-0 overflow-hidden border-white/10 bg-slate-900/40">
+                <div className="p-4 border-b border-white/5 flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center bg-white/5">
+                    <div className="relative w-full lg:w-96">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                         <input
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-700 rounded pl-9 pr-3 py-2 text-sm text-white focus:border-purple-500 transition-colors outline-none"
+                            className="w-full bg-slate-950/50 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm text-white focus:border-purple-500 transition-all outline-none placeholder:text-slate-600"
                             placeholder="Search batch or product..."
                         />
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2 w-full lg:w-auto">
                         <Button
                             variant="secondary"
                             onClick={handleDownloadLowStockCSV}
                             disabled={lowStock === 0}
-                            className="text-xs sm:text-sm"
+                            className="flex-1 lg:flex-none text-sm font-bold transition-all h-10 px-4 rounded-xl border-white/5 bg-white/5"
                         >
-                            <Download size={16} className="mr-2" /> Low Stock CSV
+                            <Download size={16} className="mr-2" /> Low Stock Report
                         </Button>
                         {canManageStock && (
-                            <>
+                            <div className="flex gap-2 w-full lg:w-auto">
                                 <input
                                     type="file"
                                     ref={fileInputRef}
@@ -305,64 +307,135 @@ function InventoryView() {
                                 <Button
                                     variant="secondary"
                                     onClick={() => fileInputRef.current?.click()}
-                                    className="text-xs sm:text-sm"
+                                    className="flex-1 lg:flex-none text-sm font-bold transition-all h-10 px-4 rounded-xl border-white/5 bg-white/5"
                                 >
-                                    <Upload size={16} className="mr-2" /> Import CSV
+                                    <Upload size={16} className="mr-2" /> Import
                                 </Button>
-                                <Button onClick={() => {
-                                    setEditBatchId(null)
-                                    setFormData({ productId: '', batchNumber: '', quantity: '1', expiryDate: '' })
-                                    setIsAddModalOpen(true)
-                                }}>
-                                    <Plus size={16} className="mr-2" /> Add New Stock
+                                <Button
+                                    onClick={() => {
+                                        setEditBatchId(null)
+                                        setFormData({ productId: '', batchNumber: '', quantity: '1', expiryDate: '' })
+                                        setIsAddModalOpen(true)
+                                    }}
+                                    className="flex-1 lg:flex-none text-sm font-bold transition-all h-10 px-4 rounded-xl shadow-lg shadow-purple-900/40"
+                                >
+                                    <Plus size={16} className="mr-2" /> New Stock
                                 </Button>
-                            </>
+                            </div>
                         )}
                     </div>
                 </div>
-                <div className="px-4 pb-2">
+
+                <div className="px-4 py-3 bg-white/5 border-b border-white/5">
                     <button
                         onClick={downloadStockTemplate}
-                        className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-colors"
+                        className="text-sm font-bold text-purple-400 hover:text-purple-300 flex items-center gap-2 transition-all"
                     >
-                        + Download CSV Template for Stock Import
+                        <Download size={12} /> Download Import Template
                     </button>
                 </div>
-                {
-                    isLoading ? (
-                        <div className="p-8 text-center text-slate-500">Loading inventory...</div>
-                    ) : (
-                        <div className="overflow-x-auto">
+
+                {isLoading ? (
+                    <div className="p-20 text-center text-slate-500">
+                        <div className="flex flex-col items-center gap-4">
+                            <div className="w-10 h-10 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                            <p className="text-sm font-bold transition-all">Synchronizing Inventory...</p>
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        {/* Mobile List */}
+                        <div className="grid grid-cols-1 gap-4 p-4 md:hidden">
+                            {filteredBatches.map(item => (
+                                <div key={item.id} className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3 relative overflow-hidden group">
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex-1 pr-10">
+                                            <h4 className="font-bold text-white text-base leading-tight">{item.product.name}</h4>
+                                            <p className="text-sm text-slate-500 font-mono mt-0.5 tracking-tight">#{item.batchNumber}</p>
+                                        </div>
+                                        {canManageStock && (
+                                            <button
+                                                onClick={() => {
+                                                    setEditBatchId(item.id)
+                                                    setFormData({
+                                                        productId: item.productId,
+                                                        batchNumber: item.batchNumber,
+                                                        quantity: item.quantity.toString(),
+                                                        expiryDate: item.expiryDate ? new Date(item.expiryDate).toISOString().split('T')[0] : ''
+                                                    })
+                                                    setIsAddModalOpen(true)
+                                                }}
+                                                className="absolute top-4 right-4 p-2 bg-white/5 rounded-lg text-slate-400 hover:text-white transition-all shadow-lg"
+                                            >
+                                                <Edit2 size={14} />
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                                        <div>
+                                            <p className="text-[9px] text-slate-500 font-bold transition-all mb-1">Available Qty</p>
+                                            <p className="text-xl font-bold text-emerald-400">{item.quantity} <span className="text-sm text-slate-500 font-bold uppercase">{item.product.unit}</span></p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-[9px] text-slate-500 font-bold transition-all mb-1">Expiry</p>
+                                            <p className="text-xs font-bold text-white">
+                                                {item.expiryDate ? new Date(item.expiryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : 'N/A'}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-start">
+                                        {(() => {
+                                            const isExpired = item.expiryDate && new Date(item.expiryDate) < new Date()
+                                            if (item.quantity <= 0) return <span className="text-[9px] font-bold transition-all bg-slate-500/10 text-slate-400 px-3 py-1 rounded-full border border-slate-500/20">Out of Stock</span>
+                                            if (isExpired) return <span className="text-[9px] font-bold transition-all bg-red-500/10 text-red-500 px-3 py-1 rounded-full border border-red-500/20">Expired</span>
+                                            if (item.quantity < 10) return <span className="text-[9px] font-bold transition-all bg-yellow-500/10 text-yellow-500 px-3 py-1 rounded-full border border-yellow-500/20">Low Stock</span>
+                                            return <span className="text-[9px] font-bold transition-all bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20 transition-all">Stable</span>
+                                        })()}
+                                    </div>
+                                </div>
+                            ))}
+                            {filteredBatches.length === 0 && (
+                                <div className="p-20 text-center text-slate-500 flex flex-col items-center gap-4">
+                                    <Archive size={48} className="opacity-10" />
+                                    <p className="text-sm font-bold transition-all">Empty Inventory</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Desktop Table */}
+                        <div className="hidden md:block overflow-x-auto">
                             <table className="w-full text-left text-sm">
-                                <thead className="bg-white/5 text-slate-300">
+                                <thead className="bg-white/5 text-slate-400 font-bold transition-all text-sm border-b border-white/5">
                                     <tr>
-                                        <th className="p-4">Batch ID</th>
+                                        <th className="p-4">Batch Details</th>
                                         <th className="p-4">Product Name</th>
-                                        <th className="p-4 text-center">Current Qty</th>
+                                        <th className="p-4 text-center">Available Qty</th>
                                         <th className="p-4">Expiry Date</th>
-                                        <th className="p-4 text-center">Status</th>
+                                        <th className="p-4 text-center">Health Status</th>
                                         {canManageStock && <th className="p-4 text-right">Actions</th>}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/5">
                                     {filteredBatches.map(item => (
-                                        <tr key={item.id} className="hover:bg-white/5 transition-colors">
-                                            <td className="p-4 font-mono text-slate-400">{item.batchNumber}</td>
-                                            <td className="p-4 font-medium text-white">
+                                        <tr key={item.id} className="hover:bg-white/5 transition-all group">
+                                            <td className="p-4 font-mono text-slate-500 text-xs">#{item.batchNumber}</td>
+                                            <td className="p-4 font-bold text-white">
                                                 {item.product.name}
-                                                <span className="text-xs text-slate-500 ml-2">({item.product.unit})</span>
+                                                <span className="text-sm font-bold text-slate-500 ml-2 opacity-60">({item.product.unit})</span>
                                             </td>
-                                            <td className="p-4 text-center font-bold text-emerald-400">{item.quantity}</td>
-                                            <td className="p-4 text-slate-400">
-                                                {item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'}
+                                            <td className="p-4 text-center font-bold text-emerald-400 text-base">{item.quantity}</td>
+                                            <td className="p-4 text-slate-400 font-medium">
+                                                {item.expiryDate ? new Date(item.expiryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
                                             </td>
                                             <td className="p-4 text-center">
                                                 {(() => {
                                                     const isExpired = item.expiryDate && new Date(item.expiryDate) < new Date()
-                                                    if (item.quantity <= 0) return <span className="text-xs bg-slate-500/10 text-slate-400 px-3 py-1 rounded-full border border-slate-500/20">Out of Stock</span>
-                                                    if (isExpired) return <span className="text-xs bg-red-500/10 text-red-500 px-3 py-1 rounded-full border border-red-500/20 font-bold">Expired</span>
-                                                    if (item.quantity < 10) return <span className="text-xs bg-yellow-500/10 text-yellow-400 px-3 py-1 rounded-full border border-yellow-500/20">Low Stock</span>
-                                                    return <span className="text-xs bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20">In Stock</span>
+                                                    if (item.quantity <= 0) return <span className="text-[9px] font-bold transition-all bg-slate-500/10 text-slate-400 px-3 py-1 rounded-full border border-slate-500/20">Out of Stock</span>
+                                                    if (isExpired) return <span className="text-[9px] font-bold transition-all bg-red-500/10 text-red-500 px-3 py-1 rounded-full border border-red-500/20">Expired</span>
+                                                    if (item.quantity < 10) return <span className="text-[9px] font-bold transition-all bg-yellow-500/10 text-yellow-400 px-3 py-1 rounded-full border border-yellow-500/20">Low Stock</span>
+                                                    return <span className="text-[9px] font-bold transition-all bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20">In Stock</span>
                                                 })()}
                                             </td>
                                             {canManageStock && (
@@ -378,7 +451,7 @@ function InventoryView() {
                                                             })
                                                             setIsAddModalOpen(true)
                                                         }}
-                                                        className="p-2 hover:bg-white/10 rounded text-slate-400 hover:text-white"
+                                                        className="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-all"
                                                     >
                                                         <Edit2 size={16} />
                                                     </button>
@@ -386,17 +459,12 @@ function InventoryView() {
                                             )}
                                         </tr>
                                     ))}
-                                    {filteredBatches.length === 0 && (
-                                        <tr>
-                                            <td colSpan={canManageStock ? 6 : 5} className="p-8 text-center text-slate-500">No batches found</td>
-                                        </tr>
-                                    )}
                                 </tbody>
                             </table>
                         </div>
-                    )
-                }
-            </Card >
+                    </>
+                )}
+            </Card>
 
             {/* Add Stock Modal */}
             {
@@ -572,124 +640,189 @@ function SuppliersView({ onViewOrders }: { onViewOrders: (id: string) => void })
 
     return (
         <React.Fragment>
-            <Card className="p-0 overflow-hidden min-h-[400px]">
-                <div className="p-4 border-b border-white/5 flex justify-between items-center">
-                    <h3 className="font-bold text-white">Registered Suppliers</h3>
+            <Card className="p-0 overflow-hidden border-white/10 bg-slate-900/40">
+                <div className="p-4 border-b border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white/5">
+                    <div>
+                        <h3 className="font-bold text-white text-lg tracking-tight">Registered Suppliers</h3>
+                        <p className="text-sm text-slate-500 font-bold transition-all mt-0.5">Manage your vendor relationships</p>
+                    </div>
                     {canManageStock && (
-                        <Button onClick={() => { setEditingId(null); setFormData({ name: '', phone: '', address: '', gstNumber: '' }); setIsAddModalOpen(true); }} variant="secondary" className="border-dashed border-slate-600 text-slate-400 hover:text-white hover:border-white">
-                            <Plus size={16} /> Add New Supplier
+                        <Button onClick={() => { setEditingId(null); setFormData({ name: '', phone: '', address: '', gstNumber: '' }); setIsAddModalOpen(true); }} variant="secondary" className="w-full md:w-auto border-dashed border-slate-700 text-sm font-bold transition-all h-10 px-4 rounded-xl hover:border-purple-500 hover:text-purple-400">
+                            <Plus size={16} className="mr-2" /> Add New Supplier
                         </Button>
                     )}
                 </div>
+
                 {isLoading ? (
-                    <div className="p-8 text-center text-slate-500">Loading suppliers...</div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-white/5 text-slate-300">
-                                <tr>
-                                    <th className="p-4">Supplier Name</th>
-                                    <th className="p-4">Contact Info</th>
-                                    <th className="p-4">GST / Tax ID</th>
-                                    <th className="p-4 text-center">Status</th>
-                                    <th className="p-4 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-white/5">
-                                {suppliers?.map(s => (
-                                    <tr key={s.id} className={`hover:bg-white/5 transition-colors ${!s.isActive ? 'opacity-50' : ''}`}>
-                                        <td className="p-4 flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400">
-                                                <User size={14} />
-                                            </div>
-                                            <div>
-                                                <p className="font-medium text-white">{s.name}</p>
-                                                <p className="text-xs text-slate-500 truncate max-w-[150px]">{s.address || 'No address'}</p>
-                                            </div>
-                                        </td>
-                                        <td className="p-4 text-slate-400">{s.phone || '-'}</td>
-                                        <td className="p-4 text-slate-500 font-mono text-xs">{s.gstNumber || 'N/A'}</td>
-                                        <td className="p-4 text-center">
-                                            <span className={`px-2 py-0.5 rounded text-[10px] ${s.isActive ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400'}`}>
-                                                {s.isActive ? 'Active' : 'Paused'}
-                                            </span>
-                                        </td>
-                                        <td className="p-4 text-right">
-                                            <div className="flex justify-end gap-2">
-                                                <button onClick={() => onViewOrders(s.id)} className="p-1.5 hover:bg-white/10 rounded text-slate-400 hover:text-white" title="View Orders">
-                                                    <Search size={14} />
-                                                </button>
-                                                {canManageStock && (
-                                                    <>
-                                                        <button onClick={() => openEdit(s)} className="p-1.5 hover:bg-white/10 rounded text-slate-400 hover:text-blue-400" title="Edit">
-                                                            <Edit2 size={14} />
-                                                        </button>
-                                                        <button onClick={() => toggleStatus(s)} className="p-1.5 hover:bg-white/10 rounded text-slate-400 hover:text-yellow-400" title={s.isActive ? 'Pause' : 'Activate'}>
-                                                            {s.isActive ? <Pause size={14} /> : <Play size={14} />}
-                                                        </button>
-                                                        <button onClick={() => setDeleteId(s.id)} className="p-1.5 hover:bg-white/10 rounded text-slate-400 hover:text-red-400" title="Delete">
-                                                            <Trash2 size={14} />
-                                                        </button>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                                {suppliers && suppliers.length === 0 && (
-                                    <tr>
-                                        <td colSpan={5} className="p-8 text-center text-slate-500">No suppliers found</td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
+                    <div className="p-20 text-center text-slate-500">
+                        <div className="flex flex-col items-center gap-4">
+                            <div className="w-10 h-10 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                            <p className="text-sm font-bold transition-all text-slate-400">Loading Vendors...</p>
+                        </div>
                     </div>
+                ) : (
+                    <>
+                        {/* Mobile Cards */}
+                        <div className="grid grid-cols-1 gap-4 p-4 md:hidden">
+                            {suppliers?.map(s => (
+                                <div key={s.id} className={`p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3 relative overflow-hidden transition-all ${!s.isActive ? 'opacity-50' : ''}`}>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-slate-400 shadow-lg">
+                                            <User size={18} />
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-white text-base leading-tight">{s.name}</p>
+                                            <p className="text-sm text-slate-500 font-bold transition-all">{s.gstNumber || 'No GST ID'}</p>
+                                        </div>
+                                    </div>
+                                    <div className="pt-2 border-t border-white/5 flex flex-col gap-1">
+                                        <p className="text-xs text-slate-400 flex items-center gap-2">
+                                            <span className="w-1 h-1 rounded-full bg-slate-600"></span>
+                                            {s.phone || 'No phone'}
+                                        </p>
+                                        <p className="text-sm text-slate-500 italic truncate">{s.address || 'No address provided'}</p>
+                                    </div>
+                                    <div className="pt-3 border-t border-white/5 flex items-center justify-between">
+                                        <span className={`px-2 py-0.5 rounded text-[9px] font-bold transition-all ${s.isActive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-yellow-500/10 text-yellow-400'}`}>
+                                            {s.isActive ? 'Active' : 'Paused'}
+                                        </span>
+                                        <div className="flex gap-1">
+                                            <button onClick={() => onViewOrders(s.id)} className="p-2 bg-white/5 rounded-lg text-slate-400 hover:text-white" title="Orders">
+                                                <Search size={14} />
+                                            </button>
+                                            {canManageStock && (
+                                                <>
+                                                    <button onClick={() => openEdit(s)} className="p-2 bg-white/5 rounded-lg text-slate-400 hover:text-blue-400">
+                                                        <Edit2 size={14} />
+                                                    </button>
+                                                    <button onClick={() => toggleStatus(s)} className="p-2 bg-white/5 rounded-lg text-slate-400 hover:text-yellow-400">
+                                                        {s.isActive ? <Pause size={14} /> : <Play size={14} />}
+                                                    </button>
+                                                    <button onClick={() => setDeleteId(s.id)} className="p-2 bg-red-500/10 rounded-lg text-red-500 hover:bg-red-500/20">
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            {suppliers?.length === 0 && (
+                                <div className="p-20 text-center text-slate-500 flex flex-col items-center gap-4">
+                                    <User size={48} className="opacity-10" />
+                                    <p className="text-sm font-bold transition-all">No Registered Suppliers</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Desktop Table */}
+                        <div className="hidden md:block overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-white/5 text-slate-400 font-bold transition-all text-sm border-b border-white/5">
+                                    <tr>
+                                        <th className="p-4">Vendor Info</th>
+                                        <th className="p-4">Contact Channel</th>
+                                        <th className="p-4">Tax ID / GST</th>
+                                        <th className="p-4 text-center">Lifecycle</th>
+                                        <th className="p-4 text-right">Operations</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                    {suppliers?.map(s => (
+                                        <tr key={s.id} className={`hover:bg-white/5 transition-all group ${!s.isActive ? 'opacity-40 grayscale' : ''}`}>
+                                            <td className="p-4 flex items-center gap-3">
+                                                <div className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center text-slate-500 group-hover:bg-purple-600/20 group-hover:text-purple-400 transition-all">
+                                                    <User size={16} />
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold text-white">{s.name}</p>
+                                                    <p className="text-sm text-slate-500 font-medium truncate max-w-[200px]">{s.address || 'Universal Store'}</p>
+                                                </div>
+                                            </td>
+                                            <td className="p-4 text-slate-400 font-bold text-xs">{s.phone || '-'}</td>
+                                            <td className="p-4 text-slate-500 font-mono text-sm uppercase tracking-wider">{s.gstNumber || 'N/A'}</td>
+                                            <td className="p-4 text-center">
+                                                <span className={`px-2 py-0.5 rounded text-[9px] font-bold transition-all ${s.isActive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-yellow-500/10 text-yellow-400'}`}>
+                                                    {s.isActive ? 'Operational' : 'On Hold'}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 text-right">
+                                                <div className="flex justify-end gap-1">
+                                                    <button onClick={() => onViewOrders(s.id)} className="p-2 hover:bg-white/10 rounded-lg text-slate-500 hover:text-white transition-all">
+                                                        <Search size={16} />
+                                                    </button>
+                                                    {canManageStock && (
+                                                        <>
+                                                            <button onClick={() => openEdit(s)} className="p-2 hover:bg-white/10 rounded-lg text-slate-500 hover:text-blue-400 transition-all">
+                                                                <Edit2 size={16} />
+                                                            </button>
+                                                            <button onClick={() => toggleStatus(s)} className="p-2 hover:bg-white/10 rounded-lg text-slate-500 hover:text-yellow-400 transition-all">
+                                                                {s.isActive ? <Pause size={16} /> : <Play size={16} />}
+                                                            </button>
+                                                            <button onClick={() => setDeleteId(s.id)} className="p-2 hover:bg-red-500/10 rounded-lg text-slate-500 hover:text-red-400 transition-all">
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
                 )}
             </Card>
 
-            {/* Add/Edit Supplier Modal */}
+            {/* Modals omitted for brevity - assuming they stay same but wrapped in responsive Card if needed */}
+            {/* ... Modal code below (Add/Edit Supplier, Delete Supplier) ... */}
             {isAddModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <Card className="w-full max-w-md">
-                        <div className="p-2">
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-xl font-bold text-white">{editingId ? 'Edit Supplier' : 'Add Supplier'}</h2>
-                                <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-white">
-                                    <X size={24} />
-                                </button>
-                            </div>
-                            <form onSubmit={handleSaveSupplier} className="space-y-4">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+                    <Card className="w-full max-w-md bg-slate-900 border-white/10 shadow-2xl">
+                        <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5">
+                            <h2 className="text-xl font-bold text-white tracking-tight">{editingId ? 'Modify Supplier' : 'New Vendor'}</h2>
+                            <button onClick={() => setIsAddModalOpen(false)} className="text-slate-500 hover:text-white transition-colors">
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleSaveSupplier} className="p-6 space-y-5">
+                            <Input
+                                label="SUPPLIER NAME"
+                                required
+                                value={formData.name}
+                                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                className="bg-white/5 border-white/10"
+                            />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <Input
-                                    label="Supplier Name"
-                                    required
-                                    value={formData.name}
-                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                />
-                                <Input
-                                    label="Phone Number"
+                                    label="PHONE"
                                     value={formData.phone}
                                     onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                                    className="bg-white/5 border-white/10"
                                 />
                                 <Input
-                                    label="Address"
-                                    value={formData.address}
-                                    onChange={e => setFormData({ ...formData, address: e.target.value })}
-                                />
-                                <Input
-                                    label="GST / Tax ID"
+                                    label="TAX / GST ID"
                                     value={formData.gstNumber}
                                     onChange={e => setFormData({ ...formData, gstNumber: e.target.value })}
+                                    className="bg-white/5 border-white/10"
                                 />
-                                <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
-                                    <Button type="button" variant="secondary" onClick={() => setIsAddModalOpen(false)}>
-                                        Cancel
-                                    </Button>
-                                    <Button type="submit" isLoading={submitting}>
-                                        {editingId ? 'Update Supplier' : 'Save Supplier'}
-                                    </Button>
-                                </div>
-                            </form>
-                        </div>
+                            </div>
+                            <Input
+                                label="OFFICE ADDRESS"
+                                value={formData.address}
+                                onChange={e => setFormData({ ...formData, address: e.target.value })}
+                                className="bg-white/5 border-white/10"
+                            />
+                            <div className="flex gap-3 pt-4 border-t border-white/5">
+                                <Button type="button" variant="secondary" onClick={() => setIsAddModalOpen(false)} className="flex-1 bg-white/5 border-white/5">
+                                    Cancel
+                                </Button>
+                                <Button type="submit" isLoading={submitting} className="flex-1 shadow-lg shadow-purple-900/40 font-bold transition-all">
+                                    {editingId ? 'Update Info' : 'Register Vendor'}
+                                </Button>
+                            </div>
+                        </form>
                     </Card>
                 </div>
             )}
@@ -699,8 +832,8 @@ function SuppliersView({ onViewOrders }: { onViewOrders: (id: string) => void })
                 onClose={() => setDeleteId(null)}
                 onConfirm={executeDelete}
                 title="Delete Supplier"
-                message="Are you sure you want to delete this supplier? This action cannot be undone if they have existing records."
-                confirmText="Delete Supplier"
+                message="Permanently remove this vendor from records? This cannot be undone."
+                confirmText="Confirm Deletion"
                 isLoading={submitting}
             />
         </React.Fragment>
@@ -737,11 +870,6 @@ function PurchasesView({ filterSupplierId, clearFilter }: { filterSupplierId: st
 
         if (field === 'productId') {
             item.productId = value
-            const prod = products?.find(p => p.id === value)
-            if (prod) {
-                // Auto-fill cost from product master if available (assuming we had costPrice there for now or default 0)
-                // In a real app we might fetch the last purchase price
-            }
         } else if (field === 'quantity' || field === 'costPrice') {
             (item as any)[field] = Number(value)
             item.total = item.quantity * item.costPrice
@@ -759,9 +887,7 @@ function PurchasesView({ filterSupplierId, clearFilter }: { filterSupplierId: st
 
     const handleCreatePO = async (status: 'PENDING' | 'RECEIVED') => {
         setSubmitting(true)
-        const loadingToast = toast.loading('Creating Purchase Order...')
-
-        // Filter out empty rows
+        const loadingToast = toast.loading('Synchronizing Purchase...')
         const validItems = poData.items.filter(i => i.productId && i.quantity > 0)
 
         try {
@@ -777,16 +903,16 @@ function PurchasesView({ filterSupplierId, clearFilter }: { filterSupplierId: st
             })
 
             if (res.ok) {
-                toast.success(status === 'RECEIVED' ? 'Order Created & Received' : 'Order Draft Created')
+                toast.success(status === 'RECEIVED' ? 'Restock Completed' : 'Import Draft Saved')
                 setIsAddModalOpen(false)
                 setPoData({ supplierId: '', invoiceNumber: '', items: [{ productId: '', quantity: 1, costPrice: 0, total: 0 }] })
                 mutate('/api/stock/purchases')
                 if (status === 'RECEIVED') mutate('/api/stock/batches')
             } else {
-                toast.error('Failed to create PO')
+                toast.error('Transaction Failed')
             }
         } catch (e) {
-            toast.error('Network error')
+            toast.error('Network failure')
         } finally {
             toast.dismiss(loadingToast)
             setSubmitting(false)
@@ -795,7 +921,7 @@ function PurchasesView({ filterSupplierId, clearFilter }: { filterSupplierId: st
 
     const executeReceive = async () => {
         if (!receivePo) return
-        const loadingToast = toast.loading('Receiving stock...')
+        const loadingToast = toast.loading('Receiving Shipments...')
         try {
             const res = await fetch('/api/stock/purchases', {
                 method: 'PUT',
@@ -804,189 +930,245 @@ function PurchasesView({ filterSupplierId, clearFilter }: { filterSupplierId: st
             })
 
             if (res.ok) {
-                toast.success('Stock Received')
+                toast.success('Inventory Synchronized')
                 mutate('/api/stock/purchases')
                 mutate('/api/stock/batches')
                 setReceivePo(null)
             } else {
-                toast.error('Failed to receive stock')
+                toast.error('Sync Error')
             }
         } catch (e) {
-            toast.error('Network error')
+            toast.error('Network Error')
         } finally {
             toast.dismiss(loadingToast)
         }
     }
 
     const totalAmount = poData.items.reduce((acc, item) => acc + item.total, 0)
-
     const filteredPurchases = filterSupplierId
         ? purchases?.filter((p: any) => p.supplierId === filterSupplierId)
         : purchases
 
     return (
         <React.Fragment>
-            <Card className="p-0 overflow-hidden min-h-[400px]">
-                <div className="p-4 border-b border-white/5 flex justify-between items-center">
-                    <div className="flex items-center gap-4">
-                        <h3 className="font-bold text-white">Purchase Orders</h3>
+            <Card className="p-0 overflow-hidden border-white/10 bg-slate-900/40">
+                <div className="p-4 border-b border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white/5">
+                    <div className="flex flex-col md:flex-row md:items-center gap-4">
+                        <h3 className="font-bold text-white text-lg tracking-tight">Purchase Orders</h3>
                         {filterSupplierId && (
-                            <span className="flex items-center gap-2 px-2 py-1 text-xs rounded bg-blue-500/20 text-blue-400">
-                                Filtered by Supplier
+                            <span className="flex items-center gap-2 px-3 py-1 text-[9px] font-bold transition-all rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                                Vendor Lockdown
                                 <button onClick={clearFilter} className="hover:text-white"><X size={12} /></button>
                             </span>
                         )}
                     </div>
                     {canManageStock && (
-                        <Button onClick={() => setIsAddModalOpen(true)}>
-                            <Plus size={16} /> New Purchase Order
+                        <Button onClick={() => setIsAddModalOpen(true)} className="w-full md:w-auto h-10 px-6 rounded-xl shadow-lg shadow-purple-900/40 font-bold transition-all text-sm">
+                            <Plus size={16} className="mr-2" /> New Purchase Record
                         </Button>
                     )}
                 </div>
+
                 {isLoading ? (
-                    <div className="p-8 text-center text-slate-500">Loading orders...</div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-white/5 text-slate-300">
-                                <tr>
-                                    <th className="p-4">Date</th>
-                                    <th className="p-4">Supplier</th>
-                                    <th className="p-4">Invoice #</th>
-                                    <th className="p-4 text-center">Items</th>
-                                    <th className="p-4 text-right">Total Amount</th>
-                                    <th className="p-4 text-center">Status</th>
-                                    <th className="p-4 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-white/5">
-                                {filteredPurchases?.map((po: any) => (
-                                    <tr key={po.id} className="hover:bg-white/5 transition-colors">
-                                        <td className="p-4 text-slate-400">
-                                            {new Date(po.date).toLocaleDateString()}
-                                        </td>
-                                        <td className="p-4 font-medium text-white">{po.supplier.name}</td>
-                                        <td className="p-4 font-mono text-slate-500 text-xs">{po.invoiceNumber || '-'}</td>
-                                        <td className="p-4 text-center text-slate-400">{po._count.items}</td>
-                                        <td className="p-4 text-right font-bold text-white">{formatCurrency(po.totalAmount)}</td>
-                                        <td className="p-4 text-center">
-                                            <span className={`px-2 py-1 rounded-full text-xs ${po.status === 'RECEIVED' ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400'}`}>
-                                                {po.status === 'RECEIVED' ? 'Received' : 'Pending'}
-                                            </span>
-                                        </td>
-                                        <td className="p-4 text-right">
-                                            {po.status !== 'RECEIVED' && canManageStock && (
-                                                <Button variant="secondary" className="h-7 text-xs bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 border-none" onClick={() => setReceivePo(po)}>
-                                                    Receive Stock
-                                                </Button>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                                {filteredPurchases?.length === 0 && (
-                                    <tr>
-                                        <td colSpan={7} className="p-8 text-center text-slate-500">No purchase orders found</td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
+                    <div className="p-20 text-center text-slate-500">
+                        <div className="flex flex-col items-center gap-4">
+                            <div className="w-10 h-10 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                            <p className="text-sm font-bold transition-all text-slate-400">Syncing Transactions...</p>
+                        </div>
                     </div>
+                ) : (
+                    <>
+                        {/* Mobile Cards */}
+                        <div className="grid grid-cols-1 gap-4 p-4 md:hidden">
+                            {filteredPurchases?.map((po: any) => (
+                                <div key={po.id} className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3 relative overflow-hidden group">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <p className="text-sm font-bold text-white">{po.supplier.name}</p>
+                                            <p className="text-sm text-slate-500 font-mono mt-0.5">#{po.invoiceNumber || 'NO-REF'}</p>
+                                        </div>
+                                        <span className={`px-2 py-0.5 rounded text-[9px] font-bold transition-all ${po.status === 'RECEIVED' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-yellow-500/10 text-yellow-400'}`}>
+                                            {po.status === 'RECEIVED' ? 'Delivered' : 'Awaiting'}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-end pt-2 border-t border-white/5">
+                                        <div>
+                                            <p className="text-[9px] text-slate-500 font-bold transition-all mb-0.5">Final Value</p>
+                                            <p className="text-lg font-bold text-white">{formatCurrency(po.totalAmount)}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-[9px] text-slate-500 font-bold transition-all mb-0.5">{po._count.items} Products</p>
+                                            <p className="text-sm text-slate-500 font-bold transition-all">{new Date(po.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</p>
+                                        </div>
+                                    </div>
+                                    {po.status !== 'RECEIVED' && canManageStock && (
+                                        <Button
+                                            className="w-full h-10 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-all text-sm shadow-lg shadow-emerald-900/20"
+                                            onClick={() => setReceivePo(po)}
+                                        >
+                                            Finalize & Receive Stock
+                                        </Button>
+                                    )}
+                                </div>
+                            ))}
+                            {filteredPurchases?.length === 0 && (
+                                <div className="p-20 text-center text-slate-500 flex flex-col items-center gap-4">
+                                    <Truck size={48} className="opacity-10" />
+                                    <p className="text-sm font-bold transition-all">No Transaction History</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Desktop Table */}
+                        <div className="hidden md:block overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-white/5 text-slate-400 font-bold transition-all text-sm border-b border-white/5">
+                                    <tr>
+                                        <th className="p-4">Arrival Date</th>
+                                        <th className="p-4">Vendor Entity</th>
+                                        <th className="p-4">Invoice / Ref</th>
+                                        <th className="p-4 text-center">SKUs</th>
+                                        <th className="p-4 text-right">Settlement</th>
+                                        <th className="p-4 text-center">Logistics</th>
+                                        <th className="p-4 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                    {filteredPurchases?.map((po: any) => (
+                                        <tr key={po.id} className="hover:bg-white/5 transition-all group">
+                                            <td className="p-4 text-slate-500 text-xs font-bold transition-all">
+                                                {new Date(po.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                            </td>
+                                            <td className="p-4 font-bold text-white">{po.supplier.name}</td>
+                                            <td className="p-4 font-mono text-slate-500 text-sm uppercase">{po.invoiceNumber || '-'}</td>
+                                            <td className="p-4 text-center text-slate-400 font-bold">{po._count.items}</td>
+                                            <td className="p-4 text-right font-bold text-white text-base">{formatCurrency(po.totalAmount)}</td>
+                                            <td className="p-4 text-center">
+                                                <span className={`px-2 py-0.5 rounded text-[9px] font-bold transition-all ${po.status === 'RECEIVED' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-yellow-500/10 text-yellow-400'}`}>
+                                                    {po.status === 'RECEIVED' ? 'Operational' : 'En Route'}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 text-right">
+                                                {po.status !== 'RECEIVED' && canManageStock && (
+                                                    <Button variant="secondary" className="h-8 text-[9px] font-bold transition-all bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white border-none rounded-lg px-4 transition-all" onClick={() => setReceivePo(po)}>
+                                                        Synchronize
+                                                    </Button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
                 )}
             </Card>
 
-            {/* Create PO Modal */}
+            {/* Create PO Modal - Responsive Wrapped */}
             {isAddModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <Card className="w-full max-w-4xl max-h-[90vh] flex flex-col">
-                        <div className="p-4 border-b border-white/10 flex justify-between items-center bg-slate-900/50">
-                            <h2 className="text-xl font-bold text-white">Create Purchase Order</h2>
-                            <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-white">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-2 md:p-4 bg-black/80 backdrop-blur-md">
+                    <Card className="w-full max-w-5xl max-h-[95vh] flex flex-col bg-slate-900 border-white/10 shadow-2xl overflow-hidden rounded-2xl">
+                        <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5">
+                            <div>
+                                <h2 className="text-xl font-bold text-white tracking-tight">Create Purchase Order</h2>
+                                <p className="text-sm text-slate-500 font-bold transition-all">Inbound Stock Logistics</p>
+                            </div>
+                            <button onClick={() => setIsAddModalOpen(false)} className="text-slate-500 hover:text-white transition-colors">
                                 <X size={24} />
                             </button>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-6">
-                            <form id="po-form" className="space-y-6">
-                                <div className="grid grid-cols-2 gap-6">
-                                    <div>
-                                        <label className="label">Select Supplier</label>
+                        <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar bg-slate-900/50">
+                            <form id="po-form" className="space-y-8">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-bold text-slate-500 ml-1">Select Active Vendor</label>
                                         <select
-                                            className="input w-full appearance-none"
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-all appearance-none"
                                             required
                                             value={poData.supplierId}
                                             onChange={e => setPoData({ ...poData, supplierId: e.target.value })}
                                         >
-                                            <option value="">-- Choose Supplier --</option>
+                                            <option value="" className="bg-slate-900">-- Select Entity --</option>
                                             {suppliers?.map(s => (
-                                                <option key={s.id} value={s.id}>{s.name}</option>
+                                                <option key={s.id} value={s.id} className="bg-slate-900">{s.name}</option>
                                             ))}
                                         </select>
                                     </div>
                                     <Input
-                                        label="Invoice Number / Ref ID"
-                                        placeholder="e.g. INV-2024-001"
+                                        label="INVOICE / REFERENCE NUMBER"
+                                        placeholder="e.g. SHIP-001-X"
                                         value={poData.invoiceNumber}
                                         onChange={e => setPoData({ ...poData, invoiceNumber: e.target.value })}
-                                        wrapperClassName="mb-0"
+                                        className="bg-white/5 border-white/10"
                                     />
                                 </div>
 
-                                <div>
-                                    <div className="flex justify-between items-center mb-2">
-                                        <h3 className="font-semibold text-white">Order Items</h3>
-                                        <Button type="button" variant="secondary" onClick={addItem} className="text-xs h-7">
-                                            <Plus size={14} /> Add Item
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-end border-b border-white/5 pb-2">
+                                        <div>
+                                            <h3 className="font-bold text-white text-base tracking-tight">Manifest Items</h3>
+                                            <p className="text-[9px] text-slate-500 font-bold transition-all">Detail all inbound SKUs</p>
+                                        </div>
+                                        <Button type="button" variant="secondary" onClick={addItem} className="text-[9px] font-bold transition-all h-8 px-4 bg-white/5 border-white/5 hover:border-purple-500 transition-all">
+                                            <Plus size={14} className="mr-1" /> Add Entry
                                         </Button>
                                     </div>
-                                    <div className="space-y-2">
+
+                                    <div className="space-y-3">
                                         {poData.items.map((item, idx) => {
                                             const selectedProduct = products?.find(p => p.id === item.productId)
                                             return (
-                                                <div key={idx} className="flex gap-2 items-start">
-                                                    <div className="flex-[3]">
+                                                <div key={idx} className="grid grid-cols-1 md:flex gap-3 items-center p-3 rounded-2xl bg-white/5 border border-white/5 hover:border-white/10 transition-all relative group">
+                                                    <div className="flex-[3] w-full">
                                                         <select
-                                                            className="input w-full appearance-none py-2 text-sm"
+                                                            className="w-full bg-slate-950/50 border border-white/5 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500 appearance-none"
                                                             required
                                                             value={item.productId}
                                                             onChange={e => updateItem(idx, 'productId', e.target.value)}
                                                         >
-                                                            <option value="">Select Product...</option>
+                                                            <option value="" className="bg-slate-900">Search Product Manifest...</option>
                                                             {products?.map(p => (
-                                                                <option key={p.id} value={p.id}>{p.name} ({p.barcode})</option>
+                                                                <option key={p.id} value={p.id} className="bg-slate-900">{p.name} ({p.barcode})</option>
                                                             ))}
                                                         </select>
                                                     </div>
-                                                    <div className="flex-[1.5] flex gap-2">
-                                                        <input
-                                                            type="number"
-                                                            className="input w-full py-2 text-sm"
-                                                            placeholder="Quantity"
-                                                            min="1"
-                                                            value={item.quantity}
-                                                            onChange={e => updateItem(idx, 'quantity', e.target.value)}
-                                                        />
-                                                        <div className="flex items-center justify-center bg-white/5 px-2 rounded text-xs text-slate-400 min-w-[3rem] whitespace-nowrap">
-                                                            {selectedProduct?.unit || 'Unit'}
+                                                    <div className="flex-[2] flex gap-2 w-full">
+                                                        <div className="relative flex-1">
+                                                            <input
+                                                                type="number"
+                                                                className="w-full bg-slate-950/50 border border-white/5 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
+                                                                placeholder="Qty"
+                                                                min="1"
+                                                                value={item.quantity}
+                                                                onChange={e => updateItem(idx, 'quantity', e.target.value)}
+                                                            />
+                                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-bold text-slate-600 pointer-events-none">
+                                                                {selectedProduct?.unit || 'Units'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="relative flex-1">
+                                                            <input
+                                                                type="number"
+                                                                className="w-full bg-slate-950/50 border border-white/5 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
+                                                                placeholder="Cost"
+                                                                min="0"
+                                                                step="0.01"
+                                                                value={item.costPrice}
+                                                                onChange={e => updateItem(idx, 'costPrice', e.target.value)}
+                                                            />
+                                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-bold text-slate-600 pointer-events-none">
+                                                                Price
+                                                            </span>
                                                         </div>
                                                     </div>
-                                                    <div className="flex-[1]">
-                                                        <input
-                                                            type="number"
-                                                            className="input w-full py-2 text-sm"
-                                                            placeholder="Unit Cost"
-                                                            min="0"
-                                                            step="0.01"
-                                                            value={item.costPrice}
-                                                            onChange={e => updateItem(idx, 'costPrice', e.target.value)}
-                                                        />
-                                                    </div>
-                                                    <div className="flex-[1] flex items-center justify-end text-sm font-medium text-slate-300 py-2 px-2 bg-white/5 rounded">
+                                                    <div className="hidden md:flex flex-[1] items-center justify-end text-sm font-bold text-emerald-400 py-2 px-3 bg-white/5 rounded-lg">
                                                         {formatCurrency(item.total)}
                                                     </div>
                                                     <button
                                                         type="button"
                                                         onClick={() => removeItem(idx)}
-                                                        className="p-2 text-slate-500 hover:text-red-400"
+                                                        className="absolute -top-2 -right-2 md:relative md:top-0 md:right-0 p-2 bg-red-500/10 md:bg-transparent text-red-500 hover:scale-110 transition-transform"
                                                     >
                                                         <Trash2 size={16} />
                                                     </button>
@@ -998,36 +1180,36 @@ function PurchasesView({ filterSupplierId, clearFilter }: { filterSupplierId: st
                             </form>
                         </div>
 
-                        <div className="p-4 border-t border-white/10 bg-slate-900/50 flex justify-between items-center">
-                            <div className="text-right">
-                                <p className="text-sm text-slate-400">Total Amount</p>
-                                <p className="text-2xl font-bold text-white">{formatCurrency(totalAmount)}</p>
+                        <div className="p-4 md:p-8 border-t border-white/10 bg-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
+                            <div className="text-center md:text-left">
+                                <p className="text-sm font-bold text-slate-500 mb-1">Total Manifest Value</p>
+                                <p className="text-4xl font-bold text-white tracking-tighter">{formatCurrency(totalAmount)}</p>
                             </div>
-                            <div className="flex gap-3">
-                                <Button type="button" variant="secondary" onClick={() => setIsAddModalOpen(false)}>
-                                    Cancel
+                            <div className="flex flex-wrap gap-3 w-full md:w-auto">
+                                <Button type="button" variant="secondary" onClick={() => setIsAddModalOpen(false)} className="flex-1 md:flex-none border-white/5 bg-white/5 h-12 md:h-10 text-sm font-bold transition-all px-8">
+                                    Discard
                                 </Button>
-                                <Button type="button" variant="secondary" isLoading={submitting} onClick={() => handleCreatePO('PENDING')}>
-                                    Save as Draft
+                                <Button type="button" variant="secondary" isLoading={submitting} onClick={() => handleCreatePO('PENDING')} className="flex-1 md:flex-none border-purple-500/20 bg-purple-500/5 h-12 md:h-10 text-sm font-bold transition-all px-8">
+                                    Save Draft
                                 </Button>
-                                <Button type="button" isLoading={submitting} className="bg-emerald-600 hover:bg-emerald-500" onClick={() => handleCreatePO('RECEIVED')}>
-                                    Receive & Save
+                                <Button type="button" isLoading={submitting} className="flex-1 md:flex-none h-12 md:h-10 text-sm font-bold transition-all px-8 shadow-xl shadow-emerald-900/40" onClick={() => handleCreatePO('RECEIVED')}>
+                                    Finalize Receipt
                                 </Button>
                             </div>
                         </div>
                     </Card>
                 </div>
             )}
-            {/* Confirmation for Receive */}
             <ConfirmationModal
                 isOpen={!!receivePo}
                 onClose={() => setReceivePo(null)}
                 onConfirm={executeReceive}
-                title="Receive Stock"
-                message={`Are you sure you want to finalize and receive stock for order #${receivePo?.invoiceNumber || receivePo?.id.slice(0, 8)}? This will update inventory immediately.`}
-                confirmText="Receive Stock"
+                title="Synchronize Stock"
+                message={`Verify and finalize inbound manifest #${receivePo?.invoiceNumber || receivePo?.id.slice(0, 8)}? Inventory will be updated immediately.`}
+                confirmText="Verify & Receive"
                 variant="info"
             />
         </React.Fragment>
     )
 }
+

@@ -89,50 +89,47 @@ export default function SalesHistoryPage() {
             </div>
 
             {/* Filters */}
-            <Card className="p-4 flex flex-wrap gap-4 items-center">
+            <Card className="p-3 md:p-4 flex flex-col md:flex-row flex-wrap gap-4 items-start md:items-center border-white/10 bg-slate-900/60 transition-all">
                 <div className="flex items-center gap-2">
-                    <Filter size={16} className="text-slate-400" />
-                    <span className="text-sm font-medium text-slate-300">Filters:</span>
+                    <Filter size={16} className="text-purple-400" />
+                    <span className="text-sm font-bold text-slate-300 uppercase tracking-widest text-[10px]">Filters</span>
                 </div>
 
-                <div className="flex bg-white/5 rounded-lg p-1">
+                <div className="flex bg-white/5 rounded-xl p-1 w-full md:w-auto overflow-x-auto no-scrollbar">
                     {['day', 'month', 'year'].map((p) => (
                         <button
                             key={p}
                             onClick={() => setPeriod(p)}
-                            className={`px-3 py-1 rounded-md text-sm transition-all ${period === p ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                            className={`flex-1 md:flex-none px-4 py-1.5 rounded-lg text-xs md:text-sm font-bold transition-all ${period === p ? 'bg-purple-600 text-white shadow-lg shadow-purple-900/40' : 'text-slate-400 hover:text-white'}`}
                         >
                             {p.charAt(0).toUpperCase() + p.slice(1)}
                         </button>
                     ))}
                 </div>
 
-                {period === 'day' && (
-                    <input
-                        type="date"
-                        value={date}
-                        onChange={(e) => setDate(e.target.value)}
-                        className="bg-white/10 border border-white/10 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-purple-500"
-                    />
-                )}
+                <div className="flex gap-2 w-full md:w-auto">
+                    {period === 'day' && (
+                        <input
+                            type="date"
+                            value={date}
+                            onChange={(e) => setDate(e.target.value)}
+                            className="flex-1 md:flex-none bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs md:text-sm text-white focus:outline-none focus:border-purple-500 [color-scheme:dark]"
+                        />
+                    )}
 
-                {period === 'month' && (
-                    <input
-                        type="month"
-                        value={month}
-                        onChange={(e) => setMonth(e.target.value)}
-                        className="bg-white/10 border border-white/10 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-purple-500"
-                    />
-                )}
+                    {period === 'month' && (
+                        <input
+                            type="month"
+                            value={month}
+                            onChange={(e) => setMonth(e.target.value)}
+                            className="flex-1 md:flex-none bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs md:text-sm text-white focus:outline-none focus:border-purple-500 [color-scheme:dark]"
+                        />
+                    )}
 
-                <div className="h-6 w-px bg-white/10 mx-2" />
-
-                <div className="flex items-center gap-2">
-                    <span className="text-sm text-slate-400">Payment:</span>
                     <select
                         value={paymentMode}
                         onChange={(e) => setPaymentMode(e.target.value)}
-                        className="bg-white/10 border border-white/10 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-purple-500"
+                        className="flex-1 md:flex-none bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs md:text-sm text-white focus:outline-none focus:border-purple-500"
                     >
                         <option value="ALL">All Modes</option>
                         <option value="CASH">Cash</option>
@@ -141,59 +138,85 @@ export default function SalesHistoryPage() {
                     </select>
                 </div>
 
-                <div className="flex items-center gap-4 ml-4 pl-4 border-l border-white/10">
+                <div className="flex items-center gap-6 w-full md:w-auto md:ml-auto pt-3 md:pt-0 border-t md:border-t-0 md:border-l border-white/10 md:pl-6 justify-between md:justify-start">
                     <div className="flex flex-col">
-                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Invoices</span>
-                        <span className="text-sm font-bold text-white">{sales.length}</span>
+                        <span className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Invoices</span>
+                        <span className="text-lg font-black text-white">{sales.length}</span>
                     </div>
-                    <div className="flex flex-col">
-                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Revenue</span>
-                        <span className="text-sm font-bold text-green-400">{formatCurrency(getTotalRevenue())}</span>
+                    <div className="flex flex-col text-right md:text-left">
+                        <span className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Revenue</span>
+                        <span className="text-lg font-black text-emerald-400">{formatCurrency(getTotalRevenue())}</span>
                     </div>
                 </div>
             </Card>
 
             {/* Sales List */}
             <div className="flex-1 overflow-hidden flex flex-col">
-                <Card className="flex-1 flex flex-col overflow-hidden p-0">
-                    <div className="grid grid-cols-12 gap-4 p-4 border-b border-white/5 bg-white/5 font-medium text-slate-300 text-sm">
+                <Card className="flex-1 flex flex-col overflow-hidden p-0 border-white/10 transition-all">
+                    <div className="hidden md:grid grid-cols-12 gap-4 p-4 border-b border-white/5 bg-white/5 font-bold text-slate-400 text-[10px] uppercase tracking-widest">
                         <div className="col-span-2">Date & Time</div>
                         <div className="col-span-2">Invoice #</div>
                         <div className="col-span-3">Customer</div>
-                        <div className="col-span-2">Payment</div>
+                        <div className="col-span-2 text-center">Payment</div>
                         <div className="col-span-2 text-right">Amount</div>
                         <div className="col-span-1 text-center">Action</div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar">
                         {loading ? (
-                            <div className="flex items-center justify-center h-40 text-slate-500">Loading...</div>
+                            <div className="flex items-center justify-center h-40 text-slate-500">
+                                <div className="flex flex-col items-center gap-2">
+                                    <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                                    <p className="text-xs font-bold uppercase tracking-widest">Loading Sales...</p>
+                                </div>
+                            </div>
                         ) : sales.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-40 text-slate-500">
-                                <FileText size={32} className="mb-2 opacity-50" />
-                                <p>No sales found for this period.</p>
+                            <div className="flex flex-col items-center justify-center h-64 text-slate-500">
+                                <div className="p-6 rounded-3xl bg-white/5 mb-4">
+                                    <FileText size={48} className="opacity-20" />
+                                </div>
+                                <p className="font-bold text-sm">No sales found for this period.</p>
                             </div>
                         ) : (
                             sales.map((sale) => (
-                                <div key={sale.id} className="grid grid-cols-12 gap-4 p-4 border-b border-white/5 items-center text-sm hover:bg-white/5 transition-colors">
-                                    <div className="col-span-2 text-slate-300">
-                                        <p>{new Date(sale.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '/')}</p>
-                                        <p className="text-xs text-slate-500">{new Date(sale.date).toLocaleTimeString()}</p>
+                                <div key={sale.id} className="flex flex-col md:grid md:grid-cols-12 gap-2 md:gap-4 p-4 border-b border-white/5 items-center text-sm hover:bg-white/5 transition-all group relative">
+                                    <div className="w-full md:col-span-2 flex justify-between md:block">
+                                        <div className="text-slate-300 font-bold">
+                                            {new Date(sale.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                                            <span className="hidden md:inline">/{new Date(sale.date).getFullYear()}</span>
+                                        </div>
+                                        <div className="text-[10px] text-slate-500 font-medium md:mt-0.5">{new Date(sale.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                                     </div>
-                                    <div className="col-span-2 font-mono text-xs">{sale.invoiceNumber}</div>
-                                    <div className="col-span-3">
+
+                                    <div className="w-full md:col-span-2 flex justify-between items-center md:block">
+                                        <div className="font-mono text-[10px] md:text-xs text-slate-400 bg-white/5 px-1.5 py-0.5 rounded md:bg-transparent md:p-0">#{sale.invoiceNumber}</div>
+                                        <div className="md:hidden">
+                                            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider
+                                                ${sale.paymentMode === 'CASH' ? 'bg-emerald-500/10 text-emerald-400' :
+                                                    sale.paymentMode === 'UPI' ? 'bg-purple-500/10 text-purple-400' :
+                                                        'bg-blue-500/10 text-blue-400'}`}>
+                                                {sale.paymentMode}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div className="w-full md:col-span-3 flex justify-between items-center md:block pt-2 md:pt-0 border-t border-white/5 md:border-0">
                                         {sale.customer ? (
-                                            <div>
-                                                <p className="text-white">{sale.customer.name}</p>
-                                                <p className="text-xs text-slate-500">{sale.customer.flatNumber}</p>
+                                            <div className="flex flex-col">
+                                                <p className="text-white font-bold text-xs md:text-sm">{sale.customer.name}</p>
+                                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Flat {sale.customer.flatNumber}</p>
                                             </div>
                                         ) : (
-                                            <span className="text-slate-500 italic">Walk-in Customer</span>
+                                            <span className="text-slate-500 text-[10px] font-bold uppercase tracking-widest italic">Walk-in</span>
                                         )}
+                                        <div className="md:hidden text-right">
+                                            <p className="font-black text-white text-base">{formatCurrency(Number(sale.totalAmount))}</p>
+                                        </div>
                                     </div>
-                                    <div className="col-span-2">
-                                        <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium 
-                                            ${sale.paymentMode === 'CASH' ? 'bg-green-500/10 text-green-400' :
+
+                                    <div className="hidden md:flex md:col-span-2 justify-center">
+                                        <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider
+                                            ${sale.paymentMode === 'CASH' ? 'bg-emerald-500/10 text-emerald-400' :
                                                 sale.paymentMode === 'UPI' ? 'bg-purple-500/10 text-purple-400' :
                                                     'bg-blue-500/10 text-blue-400'}`}>
                                             {sale.paymentMode === 'CASH' && <Banknote size={12} />}
@@ -202,16 +225,18 @@ export default function SalesHistoryPage() {
                                             {sale.paymentMode}
                                         </span>
                                     </div>
-                                    <div className="col-span-2 text-right font-bold text-white">
+
+                                    <div className="hidden md:block md:col-span-2 text-right font-black text-white text-base">
                                         {formatCurrency(Number(sale.totalAmount))}
                                     </div>
-                                    <div className="col-span-1 text-center">
+
+                                    <div className="w-full md:col-span-1 flex justify-end md:justify-center mt-3 md:mt-0">
                                         <Button
-                                            variant="ghost"
-                                            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 h-auto w-auto rounded-md text-xs font-semibold"
+                                            variant="secondary"
+                                            className="w-full md:w-auto flex items-center justify-center gap-2 bg-white/5 hover:bg-purple-600 hover:text-white border-white/5 md:px-3 py-2 md:py-1.5 h-auto rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
                                             onClick={() => setSelectedSale(sale)}
                                         >
-                                            View <ArrowUpRight size={14} />
+                                            Details <ArrowUpRight size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                                         </Button>
                                     </div>
                                 </div>

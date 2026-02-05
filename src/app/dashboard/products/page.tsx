@@ -254,14 +254,14 @@ export default function ProductsPage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
                         Product Catalogue
                     </h1>
                     <p className="text-sm text-slate-400">Manage your inventory items</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 w-full md:w-auto">
                     <input
                         type="file"
                         ref={fileInputRef}
@@ -269,12 +269,12 @@ export default function ProductsPage() {
                         accept=".csv"
                         className="hidden"
                     />
-                    <Button variant="secondary" onClick={handleImportClick}>
-                        <Upload size={18} className="mr-2" /> Import CSV
+                    <Button variant="secondary" onClick={handleImportClick} className="flex-1 md:flex-none h-10 text-xs md:text-sm">
+                        <Upload size={18} className="md:mr-2" /> <span className="hidden md:inline">Import CSV</span>
                     </Button>
                     {canManageStock && (
-                        <Button onClick={() => { resetForm(); setIsAddModalOpen(true) }}>
-                            <Plus size={18} className="mr-2" /> Add Product
+                        <Button onClick={() => { resetForm(); setIsAddModalOpen(true) }} className="flex-1 md:flex-none h-10 text-xs md:text-sm">
+                            <Plus size={18} className="md:mr-2" /> <span className="hidden md:inline">Add Product</span>
                         </Button>
                     )}
                 </div>
@@ -283,10 +283,10 @@ export default function ProductsPage() {
             {/* Filters */}
             <div className="flex flex-col gap-2">
                 <div className="flex gap-4">
-                    <Card className="flex-1 p-3 flex items-center gap-3">
-                        <Search className="text-slate-400" size={20} />
+                    <Card className="flex-1 p-2.5 md:p-3 flex items-center gap-3 bg-slate-900/60 transition-all border-white/10">
+                        <Search className="text-slate-400" size={18} />
                         <input
-                            className="bg-transparent border-none outline-none text-white w-full placeholder:text-slate-500"
+                            className="bg-transparent border-none outline-none text-white w-full placeholder:text-slate-500 text-sm"
                             placeholder="Search by name, barcode..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
@@ -295,85 +295,132 @@ export default function ProductsPage() {
                 </div>
                 <button
                     onClick={downloadTemplate}
-                    className="text-xs text-purple-400 hover:text-purple-300 text-left w-fit px-1 transition-colors flex items-center gap-1"
+                    className="text-[10px] md:text-xs text-purple-400 hover:text-purple-300 text-left w-fit px-1 transition-colors flex items-center gap-1 uppercase font-bold tracking-widest"
                 >
-                    <Package size={12} /> Download CSV Template for Import
+                    <Package size={12} /> Download CSV Template
                 </button>
             </div>
 
-            {/* Product Table */}
-            <Card className="p-0 overflow-hidden min-h-[400px]">
+            {/* Product Table / Mobile Cards */}
+            <div className="flex-1 overflow-hidden">
                 {isLoading ? (
                     <div className="flex items-center justify-center h-64 text-slate-500">
-                        Loading products...
+                        <div className="flex flex-col items-center gap-3">
+                            <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                            <p className="text-xs font-bold uppercase tracking-widest">Loading Catalogue...</p>
+                        </div>
                     </div>
+                ) : filteredProducts.length === 0 ? (
+                    <Card className="flex flex-col items-center justify-center p-12 text-slate-500 border-dashed border-2 border-white/5">
+                        <Package size={48} className="mb-4 opacity-20" />
+                        <p className="font-bold">No products found.</p>
+                        <p className="text-xs mt-1">Add one to get started.</p>
+                    </Card>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-white/5 text-slate-300 font-medium">
-                                <tr>
-                                    <th className="p-4">Product Name</th>
-                                    <th className="p-4">Barcode</th>
-                                    <th className="p-4">Category</th>
-                                    <th className="p-4 text-right">Cost</th>
-                                    <th className="p-4 text-right">Price</th>
-                                    <th className="p-4 text-center">Unit</th>
-                                    <th className="p-4 text-right">Stock Alert</th>
-                                    {canManageStock && <th className="p-4 text-right">Actions</th>}
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-white/5">
-                                {filteredProducts.map((product) => (
-                                    <tr key={product.id} className="hover:bg-white/5 transition-colors">
-                                        <td className="p-4 font-medium text-white">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center text-slate-400">
-                                                    <Package size={16} />
-                                                </div>
-                                                {product.name}
-                                            </div>
-                                        </td>
-                                        <td className="p-4 text-slate-400 font-mono">{product.barcode}</td>
-                                        <td className="p-4 text-slate-400">
-                                            <span className="px-2 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs text-center border border-blue-500/20">
-                                                {product.category}
-                                            </span>
-                                        </td>
-                                        <td className="p-4 text-right text-slate-400">{formatCurrency(product.costPrice)}</td>
-                                        <td className="p-4 text-right font-bold text-green-400">{formatCurrency(product.sellingPrice)}</td>
-                                        <td className="p-4 text-center text-slate-400">{product.unit}</td>
-                                        <td className="p-4 text-right text-slate-400">{product.minStockLevel}</td>
+                    <>
+                        {/* Mobile List */}
+                        <div className="grid grid-cols-1 gap-4 md:hidden">
+                            {filteredProducts.map((product) => (
+                                <Card key={product.id} className="p-4 bg-slate-900/40 border-white/10 relative overflow-hidden group">
+                                    <div className="flex justify-between items-start mb-3">
+                                        <div className="flex-1 pr-12">
+                                            <h3 className="font-black text-white text-base leading-tight">{product.name}</h3>
+                                            <p className="text-[10px] text-slate-500 font-mono mt-1">{product.barcode}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-base font-black text-emerald-400">{formatCurrency(product.sellingPrice)}</p>
+                                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{product.unit}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between pt-3 border-t border-white/5">
+                                        <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] font-black uppercase tracking-widest border border-blue-500/20">
+                                            {product.category}
+                                        </span>
                                         {canManageStock && (
-                                            <td className="p-4 text-right">
-                                                <div className="flex justify-end gap-2">
-                                                    <button
-                                                        onClick={() => openEdit(product)}
-                                                        className="p-2 hover:bg-white/10 rounded text-slate-400 hover:text-white transition-colors">
-                                                        <Edit2 size={16} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setDeleteId(product.id)}
-                                                        className="p-2 hover:bg-red-500/20 rounded text-red-400 hover:text-red-200 transition-colors"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                </div>
-                                            </td>
+                                            <div className="flex gap-1">
+                                                <button
+                                                    onClick={() => openEdit(product)}
+                                                    className="p-2 bg-white/5 rounded-lg text-slate-400 hover:text-white transition-all"
+                                                >
+                                                    <Edit2 size={14} />
+                                                </button>
+                                                <button
+                                                    onClick={() => setDeleteId(product.id)}
+                                                    className="p-2 bg-red-500/10 rounded-lg text-red-500 hover:bg-red-500/20 transition-all"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
                                         )}
-                                    </tr>
-                                ))}
-                                {filteredProducts.length === 0 && (
-                                    <tr>
-                                        <td colSpan={canManageStock ? 8 : 7} className="p-8 text-center text-slate-500">
-                                            No products found. Add one to get started.
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                    </div>
+                                </Card>
+                            ))}
+                        </div>
+
+                        {/* Desktop Table */}
+                        <Card className="hidden md:block p-0 overflow-hidden border-white/10">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-sm">
+                                    <thead className="bg-white/5 text-slate-400 font-bold uppercase tracking-widest text-[10px]">
+                                        <tr>
+                                            <th className="p-4">Product Details</th>
+                                            <th className="p-4">Barcode</th>
+                                            <th className="p-4">Category</th>
+                                            <th className="p-4 text-right">Cost</th>
+                                            <th className="p-4 text-right">Price</th>
+                                            <th className="p-4 text-center">Unit</th>
+                                            <th className="p-4 text-right">Min Stock</th>
+                                            {canManageStock && <th className="p-4 text-right">Actions</th>}
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/5">
+                                        {filteredProducts.map((product) => (
+                                            <tr key={product.id} className="hover:bg-white/5 transition-colors group">
+                                                <td className="p-4 font-bold text-white">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-slate-500 group-hover:text-purple-400 transition-colors">
+                                                            <Package size={16} />
+                                                        </div>
+                                                        {product.name}
+                                                    </div>
+                                                </td>
+                                                <td className="p-4 text-slate-400 font-mono text-xs">{product.barcode}</td>
+                                                <td className="p-4">
+                                                    <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] font-black uppercase tracking-widest border border-blue-500/20">
+                                                        {product.category}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4 text-right text-slate-500 font-medium">{formatCurrency(product.costPrice)}</td>
+                                                <td className="p-4 text-right font-black text-emerald-400 text-base">{formatCurrency(product.sellingPrice)}</td>
+                                                <td className="p-4 text-center text-slate-400 font-bold uppercase text-[10px] tracking-widest">{product.unit}</td>
+                                                <td className="p-4 text-right text-slate-500 font-bold">{product.minStockLevel}</td>
+                                                {canManageStock && (
+                                                    <td className="p-4 text-right">
+                                                        <div className="flex justify-end gap-1">
+                                                            <button
+                                                                onClick={() => openEdit(product)}
+                                                                className="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-all"
+                                                            >
+                                                                <Edit2 size={16} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setDeleteId(product.id)}
+                                                                className="p-2 hover:bg-red-500/20 rounded-lg text-red-400 hover:text-red-200 transition-all"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                )}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </Card>
+                    </>
                 )}
-            </Card>
+            </div>
 
             {/* Add Modal */}
             {isAddModalOpen && (

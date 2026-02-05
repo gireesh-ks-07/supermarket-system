@@ -127,31 +127,34 @@ export default function ReportsPage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
                         Analytics & Reports
                     </h1>
                     <p className="text-sm text-slate-400">Financial insights and performance metrics</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 w-full md:w-auto">
                     <Button
                         variant={activeTab === 'business' ? undefined : 'secondary'}
                         onClick={() => setActiveTab('business')}
+                        className="flex-1 md:flex-none text-xs md:text-sm"
                     >
-                        <BarChart3 className="mr-2" size={16} /> Business
+                        <BarChart3 className="md:mr-2" size={16} /> <span className="hidden md:inline">Business</span>
                     </Button>
                     <Button
                         variant={activeTab === 'profit' ? undefined : 'secondary'}
                         onClick={() => setActiveTab('profit')}
+                        className="flex-1 md:flex-none text-xs md:text-sm"
                     >
-                        <PieChart className="mr-2" size={16} /> Profit Analysis
+                        <PieChart className="md:mr-2" size={16} /> <span className="hidden md:inline">Profit Analysis</span>
                     </Button>
                     <Button
                         variant={activeTab === 'credit' ? undefined : 'secondary'}
                         onClick={() => setActiveTab('credit')}
+                        className="flex-1 md:flex-none text-xs md:text-sm"
                     >
-                        <CreditCard className="mr-2" size={16} /> Credit Reports
+                        <CreditCard className="md:mr-2" size={16} /> <span className="hidden md:inline">Credit Reports</span>
                     </Button>
                 </div>
             </div>
@@ -201,7 +204,7 @@ export default function ReportsPage() {
             {activeTab === 'profit' && (
                 <div className="space-y-6 fade-in">
                     {/* Profit Metrics */}
-                    <div className="grid grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <Card className="p-4 space-y-2 bg-gradient-to-br from-green-500/10 to-transparent border-green-500/20">
                             <div className="flex justify-between items-start">
                                 <div className="p-2 rounded bg-green-500/20 text-green-400">
@@ -209,8 +212,8 @@ export default function ReportsPage() {
                                 </div>
                             </div>
                             <div>
-                                <p className="text-green-400/80 text-sm font-bold uppercase tracking-wider">Total Profit</p>
-                                <h3 className="text-3xl font-bold text-white">
+                                <p className="text-green-400/80 text-[10px] md:text-sm font-bold uppercase tracking-wider">Total Profit</p>
+                                <h3 className="text-2xl md:text-3xl font-bold text-white">
                                     {profitLoading ? '...' : formatCurrency(profitData?.totalProfit || 0)}
                                 </h3>
                             </div>
@@ -223,8 +226,8 @@ export default function ReportsPage() {
                                 </div>
                             </div>
                             <div>
-                                <p className="text-slate-400 text-sm">Total Revenue</p>
-                                <h3 className="text-2xl font-bold text-white">
+                                <p className="text-slate-400 text-[10px] md:text-sm uppercase font-bold tracking-wider">Total Revenue</p>
+                                <h3 className="text-xl md:text-2xl font-bold text-white">
                                     {profitLoading ? '...' : formatCurrency(profitData?.totalRevenue || 0)}
                                 </h3>
                             </div>
@@ -237,8 +240,8 @@ export default function ReportsPage() {
                                 </div>
                             </div>
                             <div>
-                                <p className="text-slate-400 text-sm">Profit Margin</p>
-                                <h3 className="text-2xl font-bold text-white">
+                                <p className="text-slate-400 text-[10px] md:text-sm uppercase font-bold tracking-wider">Profit Margin</p>
+                                <h3 className="text-xl md:text-2xl font-bold text-white">
                                     {profitLoading ? '...' : `${(profitData?.profitMargin || 0).toFixed(1)}%`}
                                 </h3>
                             </div>
@@ -250,8 +253,8 @@ export default function ReportsPage() {
                                 </div>
                             </div>
                             <div>
-                                <p className="text-slate-400 text-sm">Total Cost</p>
-                                <h3 className="text-2xl font-bold text-slate-300">
+                                <p className="text-slate-400 text-[10px] md:text-sm uppercase font-bold tracking-wider">Total Cost</p>
+                                <h3 className="text-xl md:text-2xl font-bold text-slate-300">
                                     {profitLoading ? '...' : formatCurrency(profitData?.totalCost || 0)}
                                 </h3>
                             </div>
@@ -306,7 +309,7 @@ export default function ReportsPage() {
                     {/* I will reconstruct the Business Tab content here. */}
 
                     {/* KPI Grid */}
-                    <div className="grid grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <Card className="p-4 space-y-2">
                             <div className="flex justify-between items-start">
                                 <div className="p-2 rounded bg-green-500/10 text-green-400">
@@ -314,8 +317,8 @@ export default function ReportsPage() {
                                 </div>
                             </div>
                             <div>
-                                <p className="text-slate-400 text-sm">Total Revenue</p>
-                                <h3 className="text-2xl font-bold text-white">
+                                <p className="text-slate-400 text-xs md:text-sm uppercase font-bold tracking-wider">Total Revenue</p>
+                                <h3 className="text-xl md:text-2xl font-bold text-white">
                                     {businessLoading ? '...' : formatCurrency(businessData?.revenue || 0)}
                                 </h3>
                             </div>
@@ -328,8 +331,8 @@ export default function ReportsPage() {
                                 </div>
                             </div>
                             <div>
-                                <p className="text-slate-400 text-sm">Total Sales</p>
-                                <h3 className="text-2xl font-bold text-white">
+                                <p className="text-slate-400 text-xs md:text-sm uppercase font-bold tracking-wider">Total Sales</p>
+                                <h3 className="text-xl md:text-2xl font-bold text-white">
                                     {businessLoading ? '...' : businessData?.salesCount || 0}
                                 </h3>
                             </div>
@@ -340,11 +343,11 @@ export default function ReportsPage() {
                                 <div className="p-2 rounded bg-purple-500/10 text-purple-400">
                                     <CreditCard size={20} />
                                 </div>
-                                <span className="text-xs text-slate-500">UPI vs Cash</span>
+                                <span className="text-[10px] text-slate-500 hidden md:block">UPI vs Cash</span>
                             </div>
                             <div>
-                                <p className="text-slate-400 text-sm">Digital Pay</p>
-                                <h3 className="text-2xl font-bold text-white">
+                                <p className="text-slate-400 text-xs md:text-sm uppercase font-bold tracking-wider">Digital Pay</p>
+                                <h3 className="text-xl md:text-2xl font-bold text-white">
                                     {businessLoading ? '...' : (
                                         (() => {
                                             const totalRev = businessData?.revenue || 0
@@ -366,8 +369,8 @@ export default function ReportsPage() {
                                 </div>
                             </div>
                             <div>
-                                <p className="text-slate-400 text-sm">Avg. Order</p>
-                                <h3 className="text-2xl font-bold text-white">
+                                <p className="text-slate-400 text-xs md:text-sm uppercase font-bold tracking-wider">Avg. Order</p>
+                                <h3 className="text-xl md:text-2xl font-bold text-white">
                                     {businessLoading ? '...' : (
                                         formatCurrency(
                                             (businessData?.revenue || 0) / (businessData?.salesCount || 1)
@@ -379,15 +382,15 @@ export default function ReportsPage() {
                     </div>
 
                     {/* Main Chart Section */}
-                    <div className="grid grid-cols-3 gap-6 mt-6">
-                        <Card className="col-span-2 p-6">
-                            <div className="flex justify-between items-center mb-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+                        <Card className="lg:col-span-2 p-4 md:p-6">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                                 <h3 className="font-bold text-lg text-white">Revenue Overview</h3>
-                                <Button variant="secondary" className="text-xs h-8" onClick={handleDownloadCSV}>Download CSV</Button>
+                                <Button variant="secondary" className="text-xs h-8 w-full sm:w-auto" onClick={handleDownloadCSV}>Download CSV</Button>
                             </div>
 
                             {/* Chart */}
-                            <div className="h-64 w-full flex items-end justify-between gap-2">
+                            <div className="h-48 md:h-64 w-full flex items-end justify-between gap-1 md:gap-2">
                                 {businessLoading ? (
                                     <div className="w-full h-full flex items-center justify-center text-slate-500">Loading...</div>
                                 ) : (businessData?.chartData || []).map((d: any) => (
@@ -399,7 +402,7 @@ export default function ReportsPage() {
                                             <div className="absolute inset-0 bg-gradient-to-t from-purple-600/50 to-blue-500/50 opacity-0 group-hover:opacity-100 transition-opacity" />
                                             <div className="absolute bottom-0 left-0 right-0 h-1 bg-purple-500" />
                                         </div>
-                                        <span className="text-xs text-slate-500 font-medium group-hover:text-white transition-colors truncate w-full text-center">
+                                        <span className="text-[8px] md:text-xs text-slate-500 font-medium group-hover:text-white transition-colors truncate w-full text-center">
                                             {d.label}
                                         </span>
                                     </div>
@@ -408,7 +411,7 @@ export default function ReportsPage() {
                         </Card>
 
                         {/* Top Products */}
-                        <Card className="col-span-1 p-0 overflow-hidden">
+                        <Card className="lg:col-span-1 p-0 overflow-hidden">
                             <div className="p-4 border-b border-white/5 bg-white/5">
                                 <h3 className="font-bold text-white">Top Selling Products</h3>
                             </div>
@@ -417,9 +420,9 @@ export default function ReportsPage() {
                                     <div className="p-4 text-center text-slate-500">Loading...</div>
                                 ) : (businessData?.topProducts || []).map((item: any, i: number) => (
                                     <div key={i} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
-                                        <div>
-                                            <p className="font-medium text-white text-sm">{item.name}</p>
-                                            <p className="text-xs text-slate-500">{item.quantity} {item.unit} sold</p>
+                                        <div className="flex-1 pr-4">
+                                            <p className="font-medium text-white text-sm truncate">{item.name}</p>
+                                            <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">{item.quantity} {item.unit} sold</p>
                                         </div>
                                         <div className="text-right">
                                             <p className="font-bold text-green-400 text-sm">{formatCurrency(item.value)}</p>
@@ -530,37 +533,37 @@ export default function ReportsPage() {
                         reportData && (
                             <div className="space-y-6 fade-in">
                                 {/* Summary */}
-                                <div className="grid grid-cols-3 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <Card className="p-6 bg-gradient-to-br from-red-500/20 to-transparent border border-red-500/30 flex flex-col justify-between relative overflow-hidden">
-                                        <div>
-                                            <p className="text-red-400 mb-2 font-medium">Outstanding Balance</p>
-                                            <h2 className="text-4xl font-bold text-white">{formatCurrency(reportData.balance || 0)}</h2>
-                                            <p className="text-sm text-slate-400 mt-2">Flat: {reportData.customer?.flatNumber}</p>
+                                        <div className="relative z-10">
+                                            <p className="text-red-400 mb-2 font-bold uppercase text-[10px] tracking-widest">Outstanding Balance</p>
+                                            <h2 className="text-4xl font-black text-white">{formatCurrency(reportData.balance || 0)}</h2>
+                                            <p className="text-xs text-slate-400 mt-2 font-medium">Flat: {reportData.customer?.flatNumber}</p>
                                         </div>
                                         <Button
                                             onClick={() => setShowPaymentModal(true)}
-                                            className="mt-4 bg-red-500 hover:bg-red-600 text-white w-full border-0"
+                                            className="mt-6 bg-red-500 hover:bg-red-600 text-white w-full border-0 font-bold uppercase tracking-wider text-xs py-5 rounded-xl shadow-lg shadow-red-900/20"
                                         >
                                             Pay / Settle
                                         </Button>
-                                        <div className="absolute top-0 right-0 p-4 opacity-10">
-                                            <DollarSign size={48} />
+                                        <div className="absolute -top-4 -right-4 p-4 opacity-10 rotate-12">
+                                            <DollarSign size={80} />
                                         </div>
                                     </Card>
-                                    <Card className="p-6 bg-white/5 border border-white/10 space-y-4">
+                                    <Card className="p-6 bg-white/5 border border-white/10 flex flex-col justify-center gap-6">
                                         <div>
-                                            <p className="text-slate-400 font-medium text-xs uppercase tracking-wider">Lifetime Credit</p>
+                                            <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest mb-1">Lifetime Credit</p>
                                             <p className="text-2xl font-bold text-white">{formatCurrency(reportData.totalCredit || 0)}</p>
                                         </div>
-                                        <div className="pt-4 border-t border-white/10">
-                                            <p className="text-slate-400 font-medium text-xs uppercase tracking-wider">Lifetime Paid</p>
-                                            <p className="text-2xl font-bold text-green-400">{formatCurrency(reportData.totalPaid || 0)}</p>
+                                        <div className="pt-6 border-t border-white/10">
+                                            <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest mb-1">Lifetime Paid</p>
+                                            <p className="text-2xl font-bold text-emerald-400">{formatCurrency(reportData.totalPaid || 0)}</p>
                                         </div>
                                     </Card>
                                     <Card className="p-6 bg-white/5 border border-white/10 flex flex-col justify-center">
-                                        <p className="text-slate-400 mb-2 font-medium">Period Sales</p>
-                                        <h2 className="text-4xl font-bold text-white">{formatCurrency(reportData.total || 0)}</h2>
-                                        <p className="text-sm text-slate-400 mt-2">Current Filter Selection</p>
+                                        <p className="text-slate-500 mb-2 font-bold text-[10px] uppercase tracking-widest">Period Sales</p>
+                                        <h2 className="text-3xl font-bold text-white">{formatCurrency(reportData.total || 0)}</h2>
+                                        <p className="text-[10px] text-slate-500 mt-2 italic">Current selection total</p>
                                     </Card>
                                 </div>
 

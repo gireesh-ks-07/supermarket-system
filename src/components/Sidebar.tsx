@@ -46,8 +46,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
             <aside
                 className={clsx(
-                    "fixed md:static inset-y-0 left-0 z-50 w-64 glass-panel m-0 md:m-4 md:mr-0 flex flex-col h-full md:h-[calc(100vh-2rem)] transition-transform duration-300 ease-in-out md:translate-x-0",
-                    isOpen ? "translate-x-0" : "-translate-x-full"
+                    "fixed md:static inset-y-0 left-0 z-50 w-72 glass-panel m-0 md:m-4 md:mr-0 flex flex-col h-full md:h-[calc(100vh-2rem)] transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] md:translate-x-0 border-r md:border border-white/10",
+                    isOpen ? "translate-x-0 opacity-100 shadow-[20px_0_50px_rgba(0,0,0,0.5)]" : "-translate-x-full opacity-0 md:opacity-100"
                 )}
             >
                 <div className="p-6 border-b border-white/5 flex justify-between items-center">
