@@ -104,7 +104,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                                                 <h4 className={`text-xs font-bold ${n.type === 'WARNING' ? 'text-orange-400' : 'text-blue-400'}`}>
                                                     {n.title}
                                                 </h4>
-                                                <span className="text-[10px] text-slate-500">{new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                <span className="text-xs text-slate-500">{new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                             </div>
                                             <p className="text-xs text-slate-300 line-clamp-2">{n.message}</p>
                                         </div>

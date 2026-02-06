@@ -163,10 +163,6 @@ export default function ReportsPage() {
             {(activeTab === 'business' || activeTab === 'profit') && (
                 <Card className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-900/80 border-slate-800/50 w-fit mb-6 backdrop-blur-sm">
                     {['daily', 'weekly', 'monthly', 'yearly'].map((p) => (
-                        // Hide 'weekly' for Profit, 'yearly' for Business if needed, or unify.
-                        // Profit API supports: daily, monthly, yearly, custom
-                        // Business API supports: daily (last 7), weekly (last 4 weeks), monthly (last 12m), custom
-                        // Let's stick to simple common terms.
                         <button
                             key={p}
                             onClick={() => setPeriod(p)}
@@ -212,7 +208,7 @@ export default function ReportsPage() {
                                 </div>
                             </div>
                             <div>
-                                <p className="text-green-400/80 text-[10px] md:text-sm font-bold uppercase tracking-wider">Total Profit</p>
+                                <p className="text-green-400/80 text-xs md:text-sm font-bold uppercase tracking-wider">Total Profit</p>
                                 <h3 className="text-2xl md:text-3xl font-bold text-white">
                                     {profitLoading ? '...' : formatCurrency(profitData?.totalProfit || 0)}
                                 </h3>
@@ -226,7 +222,7 @@ export default function ReportsPage() {
                                 </div>
                             </div>
                             <div>
-                                <p className="text-slate-400 text-[10px] md:text-sm uppercase font-bold tracking-wider">Total Revenue</p>
+                                <p className="text-slate-400 text-xs md:text-sm uppercase font-bold tracking-wider">Total Revenue</p>
                                 <h3 className="text-xl md:text-2xl font-bold text-white">
                                     {profitLoading ? '...' : formatCurrency(profitData?.totalRevenue || 0)}
                                 </h3>
@@ -240,7 +236,7 @@ export default function ReportsPage() {
                                 </div>
                             </div>
                             <div>
-                                <p className="text-slate-400 text-[10px] md:text-sm uppercase font-bold tracking-wider">Profit Margin</p>
+                                <p className="text-slate-400 text-xs md:text-sm uppercase font-bold tracking-wider">Profit Margin</p>
                                 <h3 className="text-xl md:text-2xl font-bold text-white">
                                     {profitLoading ? '...' : `${(profitData?.profitMargin || 0).toFixed(1)}%`}
                                 </h3>
@@ -253,7 +249,7 @@ export default function ReportsPage() {
                                 </div>
                             </div>
                             <div>
-                                <p className="text-slate-400 text-[10px] md:text-sm uppercase font-bold tracking-wider">Total Cost</p>
+                                <p className="text-slate-400 text-xs md:text-sm uppercase font-bold tracking-wider">Total Cost</p>
                                 <h3 className="text-xl md:text-2xl font-bold text-slate-300">
                                     {profitLoading ? '...' : formatCurrency(profitData?.totalCost || 0)}
                                 </h3>
@@ -303,11 +299,6 @@ export default function ReportsPage() {
 
             {activeTab === 'business' && (
                 <>
-                    {/* EXISTING BUSINESS CONTENT WITHOUT FILTERS (Filters moved up) */}
-                    {/* ... Paste specific content or structure ... */}
-                    {/* Wait, I cannot omit content. Replace entire file properly. */}
-                    {/* I will reconstruct the Business Tab content here. */}
-
                     {/* KPI Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <Card className="p-4 space-y-2">
@@ -343,7 +334,7 @@ export default function ReportsPage() {
                                 <div className="p-2 rounded bg-purple-500/10 text-purple-400">
                                     <CreditCard size={20} />
                                 </div>
-                                <span className="text-[10px] text-slate-500 hidden md:block">UPI vs Cash</span>
+                                <span className="text-xs text-slate-500 hidden md:block">UPI vs Cash</span>
                             </div>
                             <div>
                                 <p className="text-slate-400 text-xs md:text-sm uppercase font-bold tracking-wider">Digital Pay</p>
@@ -402,7 +393,7 @@ export default function ReportsPage() {
                                             <div className="absolute inset-0 bg-gradient-to-t from-purple-600/50 to-blue-500/50 opacity-0 group-hover:opacity-100 transition-opacity" />
                                             <div className="absolute bottom-0 left-0 right-0 h-1 bg-purple-500" />
                                         </div>
-                                        <span className="text-[8px] md:text-xs text-slate-500 font-medium group-hover:text-white transition-colors truncate w-full text-center">
+                                        <span className="text-[10px] md:text-xs text-slate-500 font-medium group-hover:text-white transition-colors truncate w-full text-center">
                                             {d.label}
                                         </span>
                                     </div>
@@ -422,7 +413,7 @@ export default function ReportsPage() {
                                     <div key={i} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
                                         <div className="flex-1 pr-4">
                                             <p className="font-medium text-white text-sm truncate">{item.name}</p>
-                                            <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">{item.quantity} {item.unit} sold</p>
+                                            <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">{item.quantity} {item.unit} sold</p>
                                         </div>
                                         <div className="text-right">
                                             <p className="font-bold text-green-400 text-sm">{formatCurrency(item.value)}</p>
@@ -536,7 +527,7 @@ export default function ReportsPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <Card className="p-6 bg-gradient-to-br from-red-500/20 to-transparent border border-red-500/30 flex flex-col justify-between relative overflow-hidden">
                                         <div className="relative z-10">
-                                            <p className="text-red-400 mb-2 font-bold uppercase text-[10px] tracking-widest">Outstanding Balance</p>
+                                            <p className="text-red-400 mb-2 font-bold uppercase text-xs tracking-widest">Outstanding Balance</p>
                                             <h2 className="text-4xl font-black text-white">{formatCurrency(reportData.balance || 0)}</h2>
                                             <p className="text-xs text-slate-400 mt-2 font-medium">Flat: {reportData.customer?.flatNumber}</p>
                                         </div>
@@ -552,18 +543,18 @@ export default function ReportsPage() {
                                     </Card>
                                     <Card className="p-6 bg-white/5 border border-white/10 flex flex-col justify-center gap-6">
                                         <div>
-                                            <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest mb-1">Lifetime Credit</p>
+                                            <p className="text-slate-500 font-bold text-xs uppercase tracking-widest mb-1">Lifetime Credit</p>
                                             <p className="text-2xl font-bold text-white">{formatCurrency(reportData.totalCredit || 0)}</p>
                                         </div>
                                         <div className="pt-6 border-t border-white/10">
-                                            <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest mb-1">Lifetime Paid</p>
+                                            <p className="text-slate-500 font-bold text-xs uppercase tracking-widest mb-1">Lifetime Paid</p>
                                             <p className="text-2xl font-bold text-emerald-400">{formatCurrency(reportData.totalPaid || 0)}</p>
                                         </div>
                                     </Card>
                                     <Card className="p-6 bg-white/5 border border-white/10 flex flex-col justify-center">
-                                        <p className="text-slate-500 mb-2 font-bold text-[10px] uppercase tracking-widest">Period Sales</p>
+                                        <p className="text-slate-500 mb-2 font-bold text-xs uppercase tracking-widest">Period Sales</p>
                                         <h2 className="text-3xl font-bold text-white">{formatCurrency(reportData.total || 0)}</h2>
-                                        <p className="text-[10px] text-slate-500 mt-2 italic">Current selection total</p>
+                                        <p className="text-xs text-slate-500 mt-2 italic">Current selection total</p>
                                     </Card>
                                 </div>
 
@@ -574,7 +565,7 @@ export default function ReportsPage() {
                                     </div>
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-sm text-left">
-                                            <thead className="text-slate-400 bg-white/5 uppercase text-xs">
+                                            <thead className="text-slate-400 bg-white/5 font-bold uppercase text-xs tracking-wider">
                                                 <tr>
                                                     <th className="px-6 py-3">Date</th>
                                                     <th className="px-6 py-3">Invoice</th>
@@ -603,8 +594,8 @@ export default function ReportsPage() {
                                                                     </button>
                                                                     {txn.virtualStatus && txn.paymentMode === 'CREDIT' && (
                                                                         <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border ${txn.virtualStatus === 'PAID' ? 'border-green-500/30 text-green-400 bg-green-500/10' :
-                                                                                txn.virtualStatus === 'PARTIAL' ? 'border-yellow-500/30 text-yellow-400 bg-yellow-500/10' :
-                                                                                    'border-slate-500/30 text-slate-400 bg-slate-500/10'
+                                                                            txn.virtualStatus === 'PARTIAL' ? 'border-yellow-500/30 text-yellow-400 bg-yellow-500/10' :
+                                                                                'border-slate-500/30 text-slate-400 bg-slate-500/10'
                                                                             }`}>
                                                                             {txn.virtualStatus}
                                                                         </span>

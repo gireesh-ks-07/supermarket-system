@@ -59,7 +59,7 @@ export default function DashboardPage() {
                             <item.icon className={item.color} size={24} />
                         </div>
                         <div>
-                            <p className="text-sm text-slate-400">{item.label}</p>
+                            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{item.label}</p>
                             <p className="text-2xl font-bold">{item.value}</p>
                         </div>
                     </Card>

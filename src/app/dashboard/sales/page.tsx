@@ -47,10 +47,6 @@ export default function SalesHistoryPage() {
     const [month, setMonth] = useState(new Date().toISOString().slice(0, 7))
     const [paymentMode, setPaymentMode] = useState('ALL')
 
-    // For custom period
-    // const [from, setFrom] = useState('')
-    // const [to, setTo] = useState('')
-
     const fetchSales = async () => {
         setLoading(true)
         try {
@@ -83,7 +79,7 @@ export default function SalesHistoryPage() {
     return (
         <div className="flex flex-col h-full gap-4">
             <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold">Sales History</h1>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">Sales History</h1>
                 <Button onClick={fetchSales} variant="secondary" className="text-sm">
                     Refresh
                 </Button>
@@ -93,7 +89,7 @@ export default function SalesHistoryPage() {
             <Card className="p-3 md:p-4 flex flex-col md:flex-row flex-wrap gap-4 items-start md:items-center border-white/10 bg-slate-900/60 transition-all">
                 <div className="flex items-center gap-2">
                     <Filter size={16} className="text-purple-400" />
-                    <span className="text-sm font-bold text-slate-300 uppercase tracking-widest text-[10px]">Filters</span>
+                    <span className="text-sm font-bold text-slate-300 uppercase tracking-widest text-xs">Filters</span>
                 </div>
 
                 <div className="flex bg-white/5 rounded-xl p-1 w-full md:w-auto overflow-x-auto no-scrollbar">
@@ -141,11 +137,11 @@ export default function SalesHistoryPage() {
 
                 <div className="flex items-center gap-6 w-full md:w-auto md:ml-auto pt-3 md:pt-0 border-t md:border-t-0 md:border-l border-white/10 md:pl-6 justify-between md:justify-start">
                     <div className="flex flex-col">
-                        <span className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Invoices</span>
+                        <span className="text-xs text-slate-500 uppercase font-black tracking-widest">Invoices</span>
                         <span className="text-lg font-black text-white">{sales.length}</span>
                     </div>
                     <div className="flex flex-col text-right md:text-left">
-                        <span className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Revenue</span>
+                        <span className="text-xs text-slate-500 uppercase font-black tracking-widest">Revenue</span>
                         <span className="text-lg font-black text-emerald-400">{formatCurrency(getTotalRevenue())}</span>
                     </div>
                 </div>
@@ -154,7 +150,7 @@ export default function SalesHistoryPage() {
             {/* Sales List */}
             <div className="flex-1 overflow-hidden flex flex-col">
                 <Card className="flex-1 flex flex-col overflow-hidden p-0 border-white/10 transition-all">
-                    <div className="hidden md:grid grid-cols-12 gap-4 p-4 border-b border-white/5 bg-white/5 font-bold text-slate-400 text-[10px] uppercase tracking-widest">
+                    <div className="hidden md:grid grid-cols-12 gap-4 p-4 border-b border-white/5 bg-white/5 font-bold text-slate-400 text-xs uppercase tracking-widest">
                         <div className="col-span-2">Date & Time</div>
                         <div className="col-span-2">Invoice #</div>
                         <div className="col-span-3">Customer</div>
@@ -186,14 +182,14 @@ export default function SalesHistoryPage() {
                                             {new Date(sale.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
                                             <span className="hidden md:inline">/{new Date(sale.date).getFullYear()}</span>
                                         </div>
-                                        <div className="text-[10px] text-slate-500 font-medium md:mt-0.5">{new Date(sale.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                        <div className="text-xs text-slate-500 font-medium md:mt-0.5">{new Date(sale.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                                     </div>
 
                                     <div className="w-full md:col-span-2 flex justify-between items-center md:block">
                                         {sale.type === 'PAYMENT' ? (
-                                            <div className="font-black text-[10px] md:text-xs text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded md:bg-transparent md:p-0 uppercase tracking-wider">CREDIT PAY</div>
+                                            <div className="font-black text-xs text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded md:bg-transparent md:p-0 uppercase tracking-wider">CREDIT PAY</div>
                                         ) : (
-                                            <div className="font-mono text-[10px] md:text-xs text-slate-400 bg-white/5 px-1.5 py-0.5 rounded md:bg-transparent md:p-0">#{sale.invoiceNumber}</div>
+                                            <div className="font-mono text-xs text-slate-400 bg-white/5 px-1.5 py-0.5 rounded md:bg-transparent md:p-0">#{sale.invoiceNumber}</div>
                                         )}
 
                                         <div className="md:hidden">
@@ -210,10 +206,10 @@ export default function SalesHistoryPage() {
                                         {sale.customer ? (
                                             <div className="flex flex-col">
                                                 <p className="text-white font-bold text-xs md:text-sm">{sale.customer.name}</p>
-                                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Flat {sale.customer.flatNumber}</p>
+                                                <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Flat {sale.customer.flatNumber}</p>
                                             </div>
                                         ) : (
-                                            <span className="text-slate-500 text-[10px] font-bold uppercase tracking-widest italic">Walk-in</span>
+                                            <span className="text-slate-500 text-xs font-bold uppercase tracking-widest italic">Walk-in</span>
                                         )}
                                         <div className="md:hidden text-right">
                                             <p className="font-black text-white text-base">{formatCurrency(Number(sale.totalAmount))}</p>
@@ -221,7 +217,7 @@ export default function SalesHistoryPage() {
                                     </div>
 
                                     <div className="hidden md:flex md:col-span-2 justify-center">
-                                        <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider
+                                        <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-black uppercase tracking-wider
                                                 ${sale.paymentMode === 'CASH' ? 'bg-emerald-500/10 text-emerald-400' :
                                                 sale.paymentMode === 'UPI' ? 'bg-purple-500/10 text-purple-400' :
                                                     'bg-blue-500/10 text-blue-400'}`}>
@@ -240,14 +236,14 @@ export default function SalesHistoryPage() {
                                         {sale.type === 'SALE' && (
                                             <Button
                                                 variant="secondary"
-                                                className="w-full md:w-auto flex items-center justify-center gap-2 bg-white/5 hover:bg-purple-600 hover:text-white border-white/5 md:px-3 py-2 md:py-1.5 h-auto rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                                                className="w-full md:w-auto flex items-center justify-center gap-2 bg-white/5 hover:bg-purple-600 hover:text-white border-white/5 md:px-3 py-2 md:py-1.5 h-auto rounded-xl text-xs font-black uppercase tracking-widest transition-all"
                                                 onClick={() => setSelectedSale(sale)}
                                             >
                                                 Details <ArrowUpRight size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                                             </Button>
                                         )}
                                         {sale.type === 'PAYMENT' && (
-                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest opacity-50 select-none">Settlement</span>
+                                            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest opacity-50 select-none">Settlement</span>
                                         )}
                                     </div>
                                 </div>
@@ -305,10 +301,10 @@ export default function SalesHistoryPage() {
                                     <table className="w-full text-sm text-left">
                                         <thead className="bg-white/5 text-slate-400 font-medium">
                                             <tr>
-                                                <th className="px-4 py-3">Product</th>
-                                                <th className="px-4 py-3 text-right">Qty</th>
-                                                <th className="px-4 py-3 text-right">Price</th>
-                                                <th className="px-4 py-3 text-right">Total</th>
+                                                <th className="px-4 py-3 text-xs uppercase tracking-wider font-bold">Product</th>
+                                                <th className="px-4 py-3 text-right text-xs uppercase tracking-wider font-bold">Qty</th>
+                                                <th className="px-4 py-3 text-right text-xs uppercase tracking-wider font-bold">Price</th>
+                                                <th className="px-4 py-3 text-right text-xs uppercase tracking-wider font-bold">Total</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-white/5">
