@@ -595,9 +595,54 @@ export default function ReportsPage() {
                                                             {txn.note && <div className="text-xs text-slate-500 italic">{txn.note}</div>}
                                                         </td>
                                                         <td className="px-6 py-4">
-                                                            <span className={`text-xs font-bold px-2 py-1 rounded ${txn.paymentMode === 'CREDIT' ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
-                                                                {txn.paymentMode}
-                                                            </span>
+                                                            <div className="relative group/mode">
+                                                                <div className="flex flex-col gap-1 items-start">
+                                                                    <button className={`text-xs font-bold px-2 py-1 rounded flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity ${txn.paymentMode === 'CREDIT' ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
+                                                                        {txn.paymentMode}
+                                                                        {txn.type === 'SALE' && <ArrowDownRight size={10} />}
+                                                                    </button>
+                                                                    {txn.virtualStatus && txn.paymentMode === 'CREDIT' && (
+                                                                        <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border ${txn.virtualStatus === 'PAID' ? 'border-green-500/30 text-green-400 bg-green-500/10' :
+                                                                                txn.virtualStatus === 'PARTIAL' ? 'border-yellow-500/30 text-yellow-400 bg-yellow-500/10' :
+                                                                                    'border-slate-500/30 text-slate-400 bg-slate-500/10'
+                                                                            }`}>
+                                                                            {txn.virtualStatus}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+
+                                                                {txn.type === 'SALE' && (
+                                                                    <div className="absolute top-full left-0 mt-1 w-32 bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden z-20 hidden group-hover/mode:block">
+                                                                        {['CASH', 'UPI', 'CREDIT'].filter(m => m !== txn.paymentMode).map(mode => (
+                                                                            <button
+                                                                                key={mode}
+                                                                                onClick={async () => {
+                                                                                    if (!confirm(`Change payment mode to ${mode}?`)) return
+                                                                                    try {
+                                                                                        const res = await fetch('/api/sales/update-mode', {
+                                                                                            method: 'POST',
+                                                                                            headers: { 'Content-Type': 'application/json' },
+                                                                                            body: JSON.stringify({ saleId: txn.id, mode })
+                                                                                        })
+                                                                                        if (res.ok) {
+                                                                                            toast.success('Updated payment mode')
+                                                                                            fetchCreditReport()
+                                                                                        } else {
+                                                                                            toast.error('Failed to update')
+                                                                                        }
+                                                                                    } catch (e) {
+                                                                                        console.error(e)
+                                                                                        toast.error('Error updating')
+                                                                                    }
+                                                                                }}
+                                                                                className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-white/10 hover:text-white"
+                                                                            >
+                                                                                Mark as {mode}
+                                                                            </button>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         </td>
                                                         <td className="px-6 py-4 text-slate-400">
                                                             {txn.type === 'SALE' ? txn.items.map((i: any) => i.product.name).join(', ') : '-'}

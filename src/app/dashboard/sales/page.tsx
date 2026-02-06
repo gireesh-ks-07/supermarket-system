@@ -20,6 +20,7 @@ type SaleItem = {
 }
 
 type Sale = {
+    type?: 'SALE' | 'PAYMENT'
     id: string
     invoiceNumber: string
     date: string
@@ -179,7 +180,7 @@ export default function SalesHistoryPage() {
                             </div>
                         ) : (
                             sales.map((sale) => (
-                                <div key={sale.id} className="flex flex-col md:grid md:grid-cols-12 gap-2 md:gap-4 p-4 border-b border-white/5 items-center text-sm hover:bg-white/5 transition-all group relative">
+                                <div key={sale.id} className={`flex flex-col md:grid md:grid-cols-12 gap-2 md:gap-4 p-4 border-b border-white/5 items-center text-sm transition-all group relative ${sale.type === 'PAYMENT' ? 'bg-green-500/5 hover:bg-green-500/10' : 'hover:bg-white/5'}`}>
                                     <div className="w-full md:col-span-2 flex justify-between md:block">
                                         <div className="text-slate-300 font-bold">
                                             {new Date(sale.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
@@ -189,10 +190,15 @@ export default function SalesHistoryPage() {
                                     </div>
 
                                     <div className="w-full md:col-span-2 flex justify-between items-center md:block">
-                                        <div className="font-mono text-[10px] md:text-xs text-slate-400 bg-white/5 px-1.5 py-0.5 rounded md:bg-transparent md:p-0">#{sale.invoiceNumber}</div>
+                                        {sale.type === 'PAYMENT' ? (
+                                            <div className="font-black text-[10px] md:text-xs text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded md:bg-transparent md:p-0 uppercase tracking-wider">CREDIT PAY</div>
+                                        ) : (
+                                            <div className="font-mono text-[10px] md:text-xs text-slate-400 bg-white/5 px-1.5 py-0.5 rounded md:bg-transparent md:p-0">#{sale.invoiceNumber}</div>
+                                        )}
+
                                         <div className="md:hidden">
                                             <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider
-                                                ${sale.paymentMode === 'CASH' ? 'bg-emerald-500/10 text-emerald-400' :
+                                                    ${sale.paymentMode === 'CASH' ? 'bg-emerald-500/10 text-emerald-400' :
                                                     sale.paymentMode === 'UPI' ? 'bg-purple-500/10 text-purple-400' :
                                                         'bg-blue-500/10 text-blue-400'}`}>
                                                 {sale.paymentMode}
@@ -216,7 +222,7 @@ export default function SalesHistoryPage() {
 
                                     <div className="hidden md:flex md:col-span-2 justify-center">
                                         <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider
-                                            ${sale.paymentMode === 'CASH' ? 'bg-emerald-500/10 text-emerald-400' :
+                                                ${sale.paymentMode === 'CASH' ? 'bg-emerald-500/10 text-emerald-400' :
                                                 sale.paymentMode === 'UPI' ? 'bg-purple-500/10 text-purple-400' :
                                                     'bg-blue-500/10 text-blue-400'}`}>
                                             {sale.paymentMode === 'CASH' && <Banknote size={12} />}
@@ -231,13 +237,18 @@ export default function SalesHistoryPage() {
                                     </div>
 
                                     <div className="w-full md:col-span-1 flex justify-end md:justify-center mt-3 md:mt-0">
-                                        <Button
-                                            variant="secondary"
-                                            className="w-full md:w-auto flex items-center justify-center gap-2 bg-white/5 hover:bg-purple-600 hover:text-white border-white/5 md:px-3 py-2 md:py-1.5 h-auto rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
-                                            onClick={() => setSelectedSale(sale)}
-                                        >
-                                            Details <ArrowUpRight size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                                        </Button>
+                                        {sale.type === 'SALE' && (
+                                            <Button
+                                                variant="secondary"
+                                                className="w-full md:w-auto flex items-center justify-center gap-2 bg-white/5 hover:bg-purple-600 hover:text-white border-white/5 md:px-3 py-2 md:py-1.5 h-auto rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                                                onClick={() => setSelectedSale(sale)}
+                                            >
+                                                Details <ArrowUpRight size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                                            </Button>
+                                        )}
+                                        {sale.type === 'PAYMENT' && (
+                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest opacity-50 select-none">Settlement</span>
+                                        )}
                                     </div>
                                 </div>
                             ))

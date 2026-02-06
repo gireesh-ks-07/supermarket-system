@@ -197,6 +197,7 @@ export async function GET(request: Request) {
     }
 
     try {
+        // 1. Fetch SALES
         const sales = await prisma.sale.findMany({
             where,
             include: {
@@ -217,7 +218,69 @@ export async function GET(request: Request) {
             }
         })
 
-        return NextResponse.json(sales)
+        // 2. Fetch PAYMENTS (Credit Settlements)
+        // Adjust filter for Payments (Payment model has 'paymentMode', 'date', 'supermarketId')
+        const paymentWhere = {
+            supermarketId,
+            date: where.date
+        } as any
+
+        if (paymentMode && paymentMode !== 'ALL') {
+            paymentWhere.paymentMode = paymentMode
+        }
+
+        const payments = await prisma.payment.findMany({
+            where: paymentWhere,
+            include: {
+                customer: {
+                    select: { name: true, flatNumber: true }
+                }
+            },
+            orderBy: { date: 'desc' }
+        })
+
+        // 3. Merge and formatting
+        const formattedSales = sales.map(s => ({
+            type: 'SALE',
+            id: s.id,
+            invoiceNumber: s.invoiceNumber,
+            date: s.date,
+            totalAmount: Number(s.totalAmount),
+            paymentMode: s.paymentMode,
+            items: s.items.map(i => ({
+                id: i.id,
+                quantity: i.quantity,
+                unitPrice: Number(i.unitPrice),
+                total: Number(i.total),
+                product: {
+                    name: i.product.name,
+                    barcode: i.product.barcode,
+                    unit: i.product.unit
+                }
+            })),
+            cashier: s.cashier,
+            customer: s.customer
+        }))
+
+        const formattedPayments = payments.map(p => ({
+            type: 'PAYMENT', // Distinguished type
+            id: p.id,
+            invoiceNumber: 'PAYMENT', // Placeholder
+            date: p.date,
+            totalAmount: Number(p.amount),
+            paymentMode: p.paymentMode,
+            items: [], // No items
+            cashier: { name: 'System' }, // Or generally 'Admin'
+            customer: p.customer,
+            note: p.note
+        }))
+
+        // Combine and Sort
+        const allTransactions = [...formattedSales, ...formattedPayments].sort((a: any, b: any) =>
+            new Date(b.date).getTime() - new Date(a.date).getTime()
+        )
+
+        return NextResponse.json(allTransactions)
     } catch (e: any) {
         return NextResponse.json({ error: e.message }, { status: 500 })
     }

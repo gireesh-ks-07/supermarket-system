@@ -69,16 +69,21 @@ export async function POST(request: Request) {
             // If we have partial payments, we'd need a more complex system.
             // Simplified: If payment covers this invoice, switch it to PAID (new mode)
 
-            if (remainingPayment >= saleAmount) {
-                await prisma.sale.update({
-                    where: { id: sale.id },
-                    data: {
-                        paymentMode: paymentMode || 'CASH',
-                        originalPaymentMode: 'CREDIT'
-                    }
-                })
-                remainingPayment -= saleAmount
-            }
+            // FIXED: We DO NOT update the original sale's payment mode. 
+            // A Credit Sale is a historical record of debt.
+            // The Payment record we just created serves as the credit against that debt.
+            // Balance is calculated dynamically (Total Credit Sales - Total Payments).
+
+            // if (remainingPayment >= saleAmount) {
+            //     await prisma.sale.update({
+            //         where: { id: sale.id },
+            //         data: {
+            //             paymentMode: paymentMode || 'CASH',
+            //             originalPaymentMode: 'CREDIT'
+            //         }
+            //     })
+            //     remainingPayment -= saleAmount
+            // }
             // If partial, we leave it as CREDIT (simplest approach to avoid splitting invoice records)
         }
 

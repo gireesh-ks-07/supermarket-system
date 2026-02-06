@@ -112,8 +112,55 @@ export async function GET(request: Request) {
 
         // For the filtered period (optional, but let's return all-time balance as primary "Due")
 
+        // ------------------------------------------------------------------
+        // Virtual Ledger Calculation for Display
+        // ------------------------------------------------------------------
+        // We want to visually show which invoices are "Closed" by the running balance.
+        // But we do NOT change the database record.
+
+        // 1. Get ALL time payments total
+        let availablePayment = totalPaid
+
+        // 2. Get ALL time CREDIT sales, ordered by Date ASC (Oldest first)
+        const allCreditSalesList = await prisma.sale.findMany({
+            where: {
+                supermarketId: user.supermarketId,
+                customerId: customer.id,
+                paymentMode: 'CREDIT'
+            },
+            orderBy: { date: 'asc' }
+        })
+
+        // 3. Map status
+        const saleStatusMap = new Map() // saleId -> { status: 'PAID' | 'PARTIAL' | 'UNPAID', checkAmount: number }
+
+        for (const sale of allCreditSalesList) {
+            const saleAmount = Number(sale.totalAmount)
+            if (availablePayment >= saleAmount) {
+                // Fully covered
+                saleStatusMap.set(sale.id, { status: 'PAID', paidAmount: saleAmount })
+                availablePayment -= saleAmount
+            } else if (availablePayment > 0) {
+                // Partially covered
+                saleStatusMap.set(sale.id, { status: 'PARTIAL', paidAmount: availablePayment })
+                availablePayment = 0
+            } else {
+                // Not covered
+                saleStatusMap.set(sale.id, { status: 'UNPAID', paidAmount: 0 })
+            }
+        }
+
+        // 4. Decorate the returned `sales` list with this virtual status
+        const salesWithStatus = sales.map((s) => {
+            const statusInfo = saleStatusMap.get(s.id)
+            if (s.paymentMode === 'CREDIT' && statusInfo) {
+                return { ...s, virtualStatus: statusInfo.status, paidAmount: statusInfo.paidAmount }
+            }
+            return { ...s, virtualStatus: s.paymentMode === 'CREDIT' ? 'UNPAID' : 'PAID', paidAmount: 0 }
+        })
+
         return NextResponse.json({
-            sales,
+            sales: salesWithStatus,
             total: totalSales,
             totalCredit, // All-time Credit
             totalPaid,   // All-time Paid

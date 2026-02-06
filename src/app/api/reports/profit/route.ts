@@ -20,37 +20,51 @@ export async function GET(request: Request) {
     if (!supermarketId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { searchParams } = new URL(request.url)
-    const period = searchParams.get('period') || 'daily' // daily, monthly, yearly, custom
+    const period = searchParams.get('period') || 'daily' // daily, weekly, monthly, yearly, custom
     const dateParam = searchParams.get('date')
 
-    const now = new Date()
     let startDate = new Date()
     let endDate: Date | undefined = undefined
 
-    // Filter Logic
+    // --------------------------------------------------------------------------------
+    // Logic: Calculate Start/End dates based on Period
+    // --------------------------------------------------------------------------------
     if (period === 'custom' && dateParam) {
         startDate = new Date(dateParam)
         if (isNaN(startDate.getTime())) startDate = new Date()
         endDate = new Date(startDate)
         endDate.setDate(endDate.getDate() + 1) // 1 day window for custom date
     } else if (period === 'daily') {
-        // Current day (or specific day view)
+        // Current day (00:00 - 23:59)
         startDate = new Date()
         startDate.setHours(0, 0, 0, 0)
+
         endDate = new Date(startDate)
         endDate.setDate(endDate.getDate() + 1)
+    } else if (period === 'weekly') {
+        // Current Week (Monday to Sunday)
+        startDate = new Date()
+        const day = startDate.getDay() // 0 is Sun
+        const diff = startDate.getDate() - day + (day === 0 ? -6 : 1) // adjust when day is sunday
+        startDate.setDate(diff)
+        startDate.setHours(0, 0, 0, 0)
+
+        endDate = new Date(startDate)
+        endDate.setDate(endDate.getDate() + 7)
     } else if (period === 'monthly') {
         // Current Month
         startDate = new Date()
         startDate.setDate(1)
         startDate.setHours(0, 0, 0, 0)
+
         endDate = new Date(startDate)
         endDate.setMonth(endDate.getMonth() + 1)
     } else if (period === 'yearly') {
         // Current Year
         startDate = new Date()
-        startDate.setMonth(0, 1)
+        startDate.setMonth(0, 1) // Jan 1
         startDate.setHours(0, 0, 0, 0)
+
         endDate = new Date(startDate)
         endDate.setFullYear(endDate.getFullYear() + 1)
     }
@@ -91,6 +105,14 @@ export async function GET(request: Request) {
                 const label = i === 0 ? '12 AM' : i < 12 ? `${i} AM` : i === 12 ? '12 PM' : `${i - 12} PM`
                 groupedData[label] = { revenue: 0, profit: 0, sortIndex: i }
             }
+        } else if (period === 'weekly') {
+            // Mon - Sun
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(startDate)
+                d.setDate(d.getDate() + i)
+                const label = d.toLocaleDateString('en-US', { weekday: 'short' })
+                groupedData[label] = { revenue: 0, profit: 0, sortIndex: i }
+            }
         } else if (period === 'monthly') {
             const daysInMonth = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0).getDate()
             for (let i = 1; i <= daysInMonth; i++) {
@@ -123,6 +145,8 @@ export async function GET(request: Request) {
             if (period === 'daily' || period === 'custom') {
                 const h = d.getHours()
                 key = h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`
+            } else if (period === 'weekly') {
+                key = d.toLocaleDateString('en-US', { weekday: 'short' })
             } else if (period === 'monthly') {
                 key = d.getDate().toString()
             } else if (period === 'yearly') {
