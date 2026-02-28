@@ -128,7 +128,7 @@ export async function PATCH(
 
         const { id: saleId } = await params
         const body = await request.json()
-        const { items, paymentMode, subTotal, taxTotal, totalAmount, customerId } = body
+        const { items, paymentMode, subTotal, taxTotal, totalAmount, customerId, customer } = body
 
         await prisma.$transaction(async (tx) => {
             const existingSale = await tx.sale.findUnique({
@@ -137,6 +137,46 @@ export async function PATCH(
             })
 
             if (!existingSale) throw new Error('Sale not found')
+            // If customer info is provided, find or create the customer
+            let finalCustomerId = existingSale.customerId
+            if (customer) {
+                const { name, flatNumber, phone } = customer
+                if (name || flatNumber || phone) {
+                    const existingCust = await tx.customer.findFirst({
+                        where: {
+                            supermarketId: user.supermarketId,
+                            OR: [
+                                ...(flatNumber ? [{ flatNumber }] : []),
+                                ...(name ? [{ name }] : [])
+                            ].filter(Boolean) as any[]
+                        }
+                    })
+
+                    if (existingCust) {
+                        finalCustomerId = existingCust.id
+                        // Update phone if needed
+                        if (phone && existingCust.phone !== phone) {
+                            await tx.customer.update({
+                                where: { id: finalCustomerId },
+                                data: { phone }
+                            })
+                        }
+                    } else {
+                        // Create novel customer mapping
+                        const newCust = await tx.customer.create({
+                            data: {
+                                supermarketId: user.supermarketId,
+                                name: name || (flatNumber ? `Flat ${flatNumber}` : 'Walk-in Customer'),
+                                flatNumber: flatNumber || null,
+                                phone: phone || null
+                            }
+                        })
+                        finalCustomerId = newCust.id
+                    }
+                } else if (existingSale.paymentMode !== 'CREDIT') {
+                    finalCustomerId = null // Clear customer if they wiped the text and it's not credit
+                }
+            }
 
             // 1. If items are provided, handle stock update
             if (items) {
@@ -176,7 +216,7 @@ export async function PATCH(
                     subTotal: subTotal !== undefined ? subTotal : existingSale.subTotal,
                     taxTotal: taxTotal !== undefined ? taxTotal : existingSale.taxTotal,
                     totalAmount: totalAmount !== undefined ? totalAmount : existingSale.totalAmount,
-                    customerId: customerId !== undefined ? customerId : existingSale.customerId,
+                    customerId: finalCustomerId,
                     // If changed to CREDIT, might need to track original
                     originalPaymentMode: paymentMode === 'CREDIT' ? 'CREDIT' : existingSale.originalPaymentMode
                 }

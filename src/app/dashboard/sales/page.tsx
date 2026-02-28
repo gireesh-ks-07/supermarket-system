@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Search, Filter, Calendar, CreditCard, Banknote, QrCode, FileText, ChevronRight, X, ArrowUpRight, Edit2, Trash2, Save, AlertCircle } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
+import { toast } from 'sonner'
+import { ConfirmationModal } from '@/components/ui/ConfirmationModal'
 
 type SaleItem = {
     id: string
@@ -44,6 +46,7 @@ export default function SalesHistoryPage() {
     const [isEditing, setIsEditing] = useState(false)
     const [editedSale, setEditedSale] = useState<Sale | null>(null)
     const [editedCustomer, setEditedCustomer] = useState<{ name: string, flatNumber: string, phone: string } | null>(null)
+    const [saleToDelete, setSaleToDelete] = useState<string | null>(null)
     const [isDeleting, setIsDeleting] = useState(false)
     const [allFlats, setAllFlats] = useState<any[]>([])
     const [allNames, setAllNames] = useState<any[]>([])
@@ -95,23 +98,25 @@ export default function SalesHistoryPage() {
         fetchSuggestions()
     }, [period, date, month, paymentMode])
 
-    const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this invoice? This will restore the stock.')) return
+    const handleDelete = async () => {
+        if (!saleToDelete) return
         setIsDeleting(true)
         try {
-            const res = await fetch(`/api/sales/${id}`, { method: 'DELETE' })
+            const res = await fetch(`/api/sales/${saleToDelete}`, { method: 'DELETE' })
             if (res.ok) {
                 setSelectedSale(null)
                 fetchSales()
+                toast.success('Invoice deleted successfully.')
             } else {
                 const data = await res.json()
-                alert(data.error || 'Failed to delete sale')
+                toast.error(data.error || 'Failed to delete sale')
             }
         } catch (error) {
             console.error('Delete error:', error)
-            alert('An error occurred while deleting.')
+            toast.error('An error occurred while deleting.')
         } finally {
             setIsDeleting(false)
+            setSaleToDelete(null)
         }
     }
 
@@ -119,19 +124,6 @@ export default function SalesHistoryPage() {
         if (!editedSale) return
         setLoading(true)
         try {
-            // 1. Update Customer Master first if data changed
-            if (editedCustomer && editedSale.customer) {
-                const custRes = await fetch(`/api/customers/${(editedSale.customer as any).id}`, {
-                    method: 'PATCH',
-                    body: JSON.stringify(editedCustomer)
-                })
-                if (!custRes.ok) {
-                    const cData = await custRes.json()
-                    console.error('Customer update failed:', cData.error)
-                }
-            }
-
-            // 2. Update Sale
             const res = await fetch(`/api/sales/${editedSale.id}`, {
                 method: 'PATCH',
                 body: JSON.stringify({
@@ -144,7 +136,8 @@ export default function SalesHistoryPage() {
                     })),
                     paymentMode: editedSale.paymentMode,
                     totalAmount: editedSale.totalAmount,
-                    subTotal: editedSale.totalAmount
+                    subTotal: editedSale.totalAmount,
+                    customer: editedCustomer
                 })
             })
 
@@ -153,18 +146,18 @@ export default function SalesHistoryPage() {
                 setSelectedSale(null)
                 setEditedCustomer(null)
                 fetchSales()
+                toast.success('Invoice updated successfully!')
             } else {
                 const data = await res.json()
-                alert(data.error || 'Failed to update sale')
+                toast.error(data.error || 'Failed to update sale')
             }
         } catch (error) {
             console.error('Update error:', error)
-            alert('An error occurred while updating.')
+            toast.error('An error occurred while updating.')
         } finally {
             setLoading(false)
         }
     }
-
     const updateItemQuantity = (itemId: string, newQty: number) => {
         if (!editedSale) return
         const updatedItems = editedSale.items.map(item => {
@@ -386,7 +379,7 @@ export default function SalesHistoryPage() {
                                         </Button>
                                         <Button
                                             variant="secondary"
-                                            onClick={() => handleDelete(selectedSale.id)}
+                                            onClick={() => setSaleToDelete(selectedSale.id)}
                                             disabled={isDeleting}
                                             className="h-8 px-3 text-xs bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white border-red-500/30"
                                         >
@@ -426,7 +419,7 @@ export default function SalesHistoryPage() {
                                             <div className="relative">
                                                 <Input
                                                     placeholder="Name"
-                                                    value={editedCustomer?.name}
+                                                    value={editedCustomer?.name || ''}
                                                     onFocus={() => setActiveSuggestionField('NAME')}
                                                     onChange={(e) => {
                                                         const val = e.target.value
@@ -460,7 +453,7 @@ export default function SalesHistoryPage() {
                                             <div className="relative">
                                                 <Input
                                                     placeholder="Flat / Room"
-                                                    value={editedCustomer?.flatNumber}
+                                                    value={editedCustomer?.flatNumber || ''}
                                                     onFocus={() => setActiveSuggestionField('FLAT')}
                                                     onChange={(e) => {
                                                         const val = e.target.value.toUpperCase()
@@ -508,13 +501,13 @@ export default function SalesHistoryPage() {
                                         <div className="space-y-2 pt-1">
                                             <Input
                                                 placeholder="Phone (Optional)"
-                                                value={editedCustomer?.phone}
+                                                value={editedCustomer?.phone || ''}
                                                 onChange={(e) => setEditedCustomer(prev => prev ? { ...prev, phone: e.target.value.replace(/\D/g, '').slice(0, 10) } : null)}
                                                 className="h-8 bg-slate-900 text-xs border-slate-700"
                                                 wrapperClassName="mb-0"
                                             />
                                             <select
-                                                value={editedSale?.paymentMode}
+                                                value={editedSale?.paymentMode || 'CASH'}
                                                 onChange={(e) => setEditedSale(prev => prev ? { ...prev, paymentMode: e.target.value } : null)}
                                                 className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-purple-400 text-xs font-bold focus:outline-none focus:border-purple-500 h-8"
                                             >
@@ -604,6 +597,16 @@ export default function SalesHistoryPage() {
                     </Card>
                 </div>
             )}
+
+            <ConfirmationModal
+                isOpen={!!saleToDelete}
+                onClose={() => setSaleToDelete(null)}
+                onConfirm={handleDelete}
+                title="Delete Invoice"
+                message="Are you sure you want to delete this invoice? This action cannot be undone and will restore the stock."
+                confirmText="Delete Invoice"
+                isLoading={isDeleting}
+            />
         </div>
     )
 }

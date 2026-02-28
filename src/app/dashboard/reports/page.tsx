@@ -10,6 +10,7 @@ import {
     CreditCard, ShoppingBag, ArrowUpRight, ArrowDownRight,
     Search, FileText, PieChart, Banknote, QrCode, ArrowLeft, AlertCircle, Download
 } from 'lucide-react'
+import { ConfirmationModal } from '@/components/ui/ConfirmationModal'
 import { formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
 import { clsx, type ClassValue } from 'clsx'
@@ -21,6 +22,7 @@ function cn(...inputs: ClassValue[]) {
 
 export default function ReportsPage() {
     const [activeTab, setActiveTab] = useState<'business' | 'credit' | 'profit' | 'product'>('business')
+    const [paymentModeChange, setPaymentModeChange] = useState<{ saleId: string, mode: string } | null>(null)
 
     // ... (rest of simple states) ...
     // Shared Date State (used by Business and Profit)
@@ -130,10 +132,10 @@ export default function ReportsPage() {
                 setPaymentNote('')
                 fetchCreditReport() // Refresh data
             } else {
-                alert('Failed to record payment')
+                toast.error('Failed to record payment')
             }
         } catch (e) {
-            alert('Error recording payment')
+            toast.error('Error recording payment')
         } finally {
             setSubmittingPayment(false)
         }
@@ -141,7 +143,7 @@ export default function ReportsPage() {
 
     const handleDownloadCSV = () => {
         // ... (Existing CSV logic for Business, can be extended for Profit later)
-        alert("CSV Download not implemented for this view yet.")
+        toast.info("CSV Download not implemented for this view yet.")
     }
 
     const filteredCreditSummary = showOnlyDue
@@ -783,25 +785,7 @@ export default function ReportsPage() {
                                                                     {['CASH', 'UPI', 'CREDIT'].filter(m => m !== txn.paymentMode).map(mode => (
                                                                         <button
                                                                             key={mode}
-                                                                            onClick={async () => {
-                                                                                if (!confirm(`Change payment mode to ${mode}?`)) return
-                                                                                try {
-                                                                                    const res = await fetch('/api/sales/update-mode', {
-                                                                                        method: 'POST',
-                                                                                        headers: { 'Content-Type': 'application/json' },
-                                                                                        body: JSON.stringify({ saleId: txn.id, mode })
-                                                                                    })
-                                                                                    if (res.ok) {
-                                                                                        toast.success('Updated payment mode')
-                                                                                        fetchCreditReport()
-                                                                                    } else {
-                                                                                        toast.error('Failed to update')
-                                                                                    }
-                                                                                } catch (e) {
-                                                                                    console.error(e)
-                                                                                    toast.error('Error updating')
-                                                                                }
-                                                                            }}
+                                                                            onClick={() => setPaymentModeChange({ saleId: txn.id, mode })}
                                                                             className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-white/10 hover:text-white"
                                                                         >
                                                                             Mark as {mode}
@@ -1004,6 +988,35 @@ export default function ReportsPage() {
                     </Card>
                 </div>
             )}
+
+            <ConfirmationModal
+                isOpen={!!paymentModeChange}
+                onClose={() => setPaymentModeChange(null)}
+                onConfirm={async () => {
+                    if (!paymentModeChange) return
+                    try {
+                        const res = await fetch('/api/sales/update-mode', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(paymentModeChange)
+                        })
+                        if (res.ok) {
+                            toast.success('Updated payment mode')
+                            fetchCreditReport()
+                        } else {
+                            toast.error('Failed to update payment mode')
+                        }
+                    } catch (e) {
+                        toast.error('Error updating payment mode')
+                    } finally {
+                        setPaymentModeChange(null)
+                    }
+                }}
+                title="Change Payment Mode"
+                message={`Are you sure you want to change this transaction's payment mode to ${paymentModeChange?.mode}?`}
+                confirmText={`Change to ${paymentModeChange?.mode}`}
+                variant="info"
+            />
         </div>
     )
 }
