@@ -77,7 +77,21 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                             <Link
                                 key={item.href}
                                 href={item.href}
-                                onClick={() => onClose()} // Close on navigate (mobile)
+                                onClick={(e) => {
+                                    if (pathname === '/dashboard/pos' && item.href !== '/dashboard/pos') {
+                                        const event = new CustomEvent('pos-nav-intent', {
+                                            detail: { href: item.href },
+                                            cancelable: true
+                                        })
+                                        window.dispatchEvent(event)
+                                        if (event.defaultPrevented) {
+                                            e.preventDefault()
+                                            return
+                                        }
+                                    }
+                                    onClose()
+                                }}
+
                                 className={clsx(
                                     'group flex items-center gap-3 px-4 py-3 rounded-r-xl transition-all duration-300 border-l-[6px]',
                                     isActive

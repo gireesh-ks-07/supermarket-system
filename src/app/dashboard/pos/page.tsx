@@ -8,6 +8,7 @@ import { Trash, Plus, Minus, Search, CreditCard, Banknote, QrCode, RefreshCcw, C
 import { useRouter } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
 import { clsx } from 'clsx'
+import { toast } from 'sonner'
 
 type Product = {
     id: string
@@ -38,6 +39,20 @@ export default function POSPage() {
     const searchInputRef = useRef<HTMLInputElement>(null)
     const resultsContainerRef = useRef<HTMLDivElement>(null)
     const router = useRouter()
+
+    const [pendingNavigation, setPendingNavigation] = useState<string | null>(null)
+
+    // Handle intent to navigate away via Sidebar
+    useEffect(() => {
+        const handleNavIntent = (e: any) => {
+            if (cart.length > 0) {
+                e.preventDefault()
+                setPendingNavigation(e.detail.href)
+            }
+        }
+        window.addEventListener('pos-nav-intent', handleNavIntent)
+        return () => window.removeEventListener('pos-nav-intent', handleNavIntent)
+    }, [cart])
 
     // Auto focus search for barcode scanning
     useEffect(() => {
@@ -686,9 +701,8 @@ export default function POSPage() {
                                 className="w-full bg-slate-800/40 border border-white/10 hover:bg-slate-700/60 text-slate-300 hover:text-white font-bold text-[10px] tracking-[0.2em] uppercase py-3 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-inner"
                                 onClick={() => {
                                     if (cart.length > 0) {
-                                        const newDraft = { id: Math.random().toString(), items: [...cart], date: new Date().toISOString() }
-                                        setDrafts([newDraft, ...drafts])
-                                        setCart([])
+                                        saveDraft()
+                                        toast.success('Bill placed on hold')
                                     }
                                 }}
                                 disabled={cart.length === 0}
@@ -789,6 +803,53 @@ export default function POSPage() {
                         </div>
                         {/* Progress Bar for Auto-dismiss (optional) but for POS acknowledgement is better */}
                         <div className={`h-1 w-full ${statusModal?.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'} opacity-30`} />
+                    </Card>
+                </div>
+            )}
+            {/* Unsaved Navigation Modal */}
+            {pendingNavigation && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
+                    <Card className="w-full max-w-md border-2 border-yellow-500/50 shadow-2xl shadow-yellow-500/20">
+                        <div className="p-6 text-center space-y-4">
+                            <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center bg-yellow-500/10 text-yellow-500">
+                                <AlertCircle size={32} />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-white mb-1">Unsaved Bill</h3>
+                                <p className="text-slate-400 text-sm">You have items in your cart. What would you like to do before leaving?</p>
+                            </div>
+                            <div className="flex flex-col gap-3 pt-4">
+                                <Button
+                                    className="w-full bg-purple-600 hover:bg-purple-700 font-bold"
+                                    onClick={() => {
+                                        // Hold Bill
+                                        saveDraft()
+                                        toast.success('Bill placed on hold')
+                                        router.push(pendingNavigation as string)
+                                    }}
+                                >
+                                    Hold Bill & Continue
+                                </Button>
+                                <Button
+                                    variant="secondary"
+                                    className="w-full bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20 font-bold"
+                                    onClick={() => {
+                                        // Exit without saving
+                                        setCart([])
+                                        router.push(pendingNavigation)
+                                    }}
+                                >
+                                    Exit Without Saving
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    className="w-full text-slate-400 hover:text-white hover:bg-white/5"
+                                    onClick={() => setPendingNavigation(null)}
+                                >
+                                    Cancel & Stay on Page
+                                </Button>
+                            </div>
+                        </div>
                     </Card>
                 </div>
             )}
