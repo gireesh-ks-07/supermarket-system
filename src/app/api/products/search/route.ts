@@ -20,31 +20,52 @@ export async function GET(request: Request) {
     } catch (e) { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
 
     if (!q) return NextResponse.json([])
+    const lowerQ = `%${q.toLowerCase()}%`
 
-    // MVP Optimization: Fetch all products and filter in memory to handle Case-Insensitivity reliably on SQLite
-    // In production with Postgres, use { mode: 'insensitive' }
-    const allProducts = await prisma.product.findMany({
-        where: {
-            supermarketId
-        },
-        include: {
-            batches: true
-        }
-    })
+    // Use raw query for maximum reliability and performance
+    const results = await prisma.$queryRaw`
+        SELECT 
+            p.id, 
+            p.name as "baseName", 
+            p.barcode, 
+            p."taxPercent", 
+            p.unit, 
+            p."costPrice" as "prodCost", 
+            p."sellingPrice" as "prodSell",
+            b.id as "batchId",
+            b."batchNumber",
+            b.quantity as "batchQty",
+            b."costPrice" as "batchCost",
+            b."sellingPrice" as "batchSell",
+            b."expiryDate"
+        FROM "Product" p
+        LEFT JOIN "ProductBatch" b ON p.id = b."productId" AND b.quantity > 0 AND (b."expiryDate" IS NULL OR b."expiryDate" >= CURRENT_DATE)
+        WHERE p."supermarketId" = ${supermarketId}
+        AND (LOWER(p.name) LIKE LOWER(${lowerQ}) OR p.barcode LIKE ${lowerQ})
+        AND b.id IS NOT NULL -- Only show products with active, non-expired batches
+        ORDER BY p.name ASC, b."expiryDate" ASC
+        LIMIT 20
+    ` as any[]
 
-    const lowerQ = q.toLowerCase()
-    const products = allProducts.filter(p =>
-        p.name.toLowerCase().includes(lowerQ) ||
-        p.barcode.includes(lowerQ)
-    ).slice(0, 10).map(p => {
-        const total = p.batches.reduce((acc, b) => acc + b.quantity, 0)
-        const expired = p.batches.filter(b => b.expiryDate && new Date(b.expiryDate) < new Date()).reduce((acc, b) => acc + b.quantity, 0)
+    const formattedResults = results.map(r => {
+        // Robust price selection (Postgres can return null for batch fields in LEFT JOIN)
+        const sellingPrice = (r.batchSell !== null && r.batchSell !== undefined) ? Number(r.batchSell) : Number(r.prodSell)
+        const costPrice = (r.batchCost !== null && r.batchCost !== undefined) ? Number(r.batchCost) : Number(r.prodCost)
+
         return {
-            ...p,
-            stock: total,
-            expiredStock: expired
+            id: r.id,
+            barcode: r.barcode,
+            unit: r.unit,
+            taxPercent: Number(r.taxPercent),
+            name: r.baseName,
+            batchId: r.batchId,
+            batchNumber: r.batchNumber,
+            stock: r.batchId ? Number(r.batchQty) : 0,
+            sellingPrice: isNaN(sellingPrice) ? 0 : sellingPrice,
+            costPrice: isNaN(costPrice) ? 0 : costPrice,
+            expiryDate: r.expiryDate
         }
     })
 
-    return NextResponse.json(products)
+    return NextResponse.json(formattedResults)
 }

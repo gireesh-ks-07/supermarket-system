@@ -85,6 +85,7 @@ export async function POST(request: Request) {
             // 2. If status is RECEIVED, create batches immediately
             if (status === 'RECEIVED') {
                 for (const item of items) {
+                    const product = await tx.product.findUnique({ where: { id: item.productId } })
                     const batchNum = `PO-${purchase.id.slice(0, 8)}-${Date.now().toString().slice(-4)}`
                     await tx.productBatch.create({
                         data: {
@@ -92,6 +93,8 @@ export async function POST(request: Request) {
                             purchaseId: purchase.id,
                             batchNumber: batchNum,
                             quantity: item.quantity,
+                            costPrice: item.costPrice,
+                            sellingPrice: product?.sellingPrice || 0, // Fallback to current
                             expiryDate: null
                         }
                     })
@@ -135,6 +138,7 @@ export async function PUT(request: Request) {
                 })
 
                 for (const item of purchase.items) {
+                    const product = await tx.product.findUnique({ where: { id: item.productId } })
                     const batchNum = `PO-${purchase.id.slice(0, 8)}-${Date.now().toString().slice(-4)}`
                     await tx.productBatch.create({
                         data: {
@@ -142,6 +146,8 @@ export async function PUT(request: Request) {
                             purchaseId: purchase.id,
                             batchNumber: batchNum,
                             quantity: item.quantity,
+                            costPrice: item.costPrice,
+                            sellingPrice: product?.sellingPrice || 0,
                             expiryDate: null
                         }
                     })

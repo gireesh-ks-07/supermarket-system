@@ -24,6 +24,8 @@ const stockImportSchema = z.object({
     batchNumber: z.string().optional(),
     quantity: z.coerce.number().optional().default(0),
     expiryDate: z.string().optional().nullable(),
+    costPrice: z.coerce.number().optional(),
+    sellingPrice: z.coerce.number().optional()
 })
 
 export async function POST(request: Request) {
@@ -53,7 +55,7 @@ export async function POST(request: Request) {
         // Get all products map for quick lookup
         const products = await prisma.product.findMany({
             where: { supermarketId },
-            select: { id: true, barcode: true, name: true }
+            select: { id: true, barcode: true, name: true, costPrice: true, sellingPrice: true }
         })
         const productMap = new Map(products.map(p => [p.barcode, p]))
 
@@ -83,22 +85,26 @@ export async function POST(request: Request) {
 
                 if (existingBatch) {
                     // Update existing batch
-                    await prisma.productBatch.update({
+                    await (prisma.productBatch as any).update({
                         where: { id: existingBatch.id },
                         data: {
-                            quantity: { increment: data.quantity }
+                            quantity: { increment: data.quantity },
+                            costPrice: data.costPrice !== undefined ? data.costPrice : (existingBatch as any).costPrice,
+                            sellingPrice: data.sellingPrice !== undefined ? data.sellingPrice : (existingBatch as any).sellingPrice
                         }
                     })
                 } else {
                     // Create Batch
                     const finalBatchNumber = data.batchNumber || `BATCH-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Date.now().toString().slice(-4)}`
 
-                    await prisma.productBatch.create({
+                    await (prisma.productBatch as any).create({
                         data: {
                             productId: product.id,
                             batchNumber: finalBatchNumber,
                             quantity: data.quantity,
                             expiryDate: data.expiryDate ? new Date(data.expiryDate) : null,
+                            costPrice: data.costPrice !== undefined ? data.costPrice : Number(product.costPrice),
+                            sellingPrice: data.sellingPrice !== undefined ? data.sellingPrice : Number(product.sellingPrice)
                         }
                     })
                 }

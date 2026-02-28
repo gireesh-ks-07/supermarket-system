@@ -21,20 +21,31 @@ export async function GET(request: Request) {
         // Fetch distinct flat numbers from Customers who have credit sales or payments
         // Ideally we just list all customers with flat numbers
         const customers = await prisma.customer.findMany({
-            where: {
-                supermarketId,
-                flatNumber: { not: null },
-            },
+            where: { supermarketId },
             select: {
-                flatNumber: true
-            },
-            distinct: ['flatNumber'],
-            orderBy: { flatNumber: 'asc' }
+                flatNumber: true,
+                name: true,
+                phone: true
+            }
         })
 
-        const flats = customers.map(c => c.flatNumber).filter(Boolean)
+        const flats = customers.map(c => ({
+            flatNumber: c.flatNumber,
+            name: c.name,
+            phone: c.phone
+        })).filter(c => c.flatNumber)
 
-        return NextResponse.json(flats)
+        const names = customers.map(c => {
+            // Exclude auto-generated "Flat X" names from the name suggestions list
+            if (c.name && c.flatNumber && c.name === `Flat ${c.flatNumber}`) return null
+            return {
+                flatNumber: c.flatNumber,
+                name: c.name,
+                phone: c.phone
+            }
+        }).filter(c => c && c.name)
+
+        return NextResponse.json({ flats, names })
 
     } catch (e) {
         console.error(e)

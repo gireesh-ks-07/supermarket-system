@@ -91,6 +91,11 @@ model ProductBatch {
   purchaseId    String?
   purchase      Purchase? @relation(fields: [purchaseId], references: [id])
 
+  costPrice     Decimal?
+  sellingPrice  Decimal?
+  
+  saleItems     SaleItem[]
+  
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
@@ -191,9 +196,13 @@ model SaleItem {
   product   Product @relation(fields: [productId], references: [id])
 
   quantity      Float      // Current stock in this batch
-  unitPrice Decimal
-  taxAmount Decimal
-  total     Decimal
+  unitPrice     Decimal
+  costPrice     Decimal?   // Track cost at time of sale
+  taxAmount     Decimal
+  total         Decimal
+  
+  batchId       String?    // Link to exact batch sold
+  batch         ProductBatch? @relation(fields: [batchId], references: [id])
 }
 
 model Customer {

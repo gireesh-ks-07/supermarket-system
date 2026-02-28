@@ -2,7 +2,7 @@ const { PrismaClient } = require('@prisma/client')
 const prisma = new PrismaClient()
 
 async function main() {
-    const invoiceSuffix = '1770284464578'
+    const invoiceSuffix = '1771409779002'
 
     // Find the sale first
     console.log(`Searching for invoice containing: ${invoiceSuffix}...`)

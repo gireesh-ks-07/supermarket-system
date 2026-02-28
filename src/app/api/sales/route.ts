@@ -23,7 +23,7 @@ export async function POST(request: Request) {
             user = jwt.verify(token, SECRET_KEY) as any
         } catch (e) { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
 
-        const { items, paymentMode, flatNumber } = await request.json()
+        const { items, paymentMode, flatNumber, phoneNumber } = await request.json()
 
         if (!items || items.length === 0) return NextResponse.json({ error: 'Empty cart' }, { status: 400 })
 
@@ -33,23 +33,47 @@ export async function POST(request: Request) {
             let customerId = null
 
             if (flatNumber) {
-                // Find or create customer with this flat number
+                // Find or create customer with this flat number OR name (since POS uses same field)
                 const existingCustomer = await tx.customer.findFirst({
                     where: {
                         supermarketId: user.supermarketId,
-                        flatNumber
+                        OR: [
+                            { flatNumber },
+                            { name: flatNumber }
+                        ]
                     }
                 })
 
                 if (existingCustomer) {
                     customerId = existingCustomer.id
+                    // Update phone if provided and changed
+                    if (phoneNumber && existingCustomer.phone !== phoneNumber) {
+                        await tx.customer.update({
+                            where: { id: customerId },
+                            data: { phone: phoneNumber }
+                        })
+                    }
                 } else {
                     const newCustomer = await tx.customer.create({
                         data: {
                             supermarketId: user.supermarketId,
-                            flatNumber,
-                            name: `Flat ${flatNumber}` // Auto-generate name
+                            flatNumber: flatNumber.includes(' ') ? null : flatNumber,
+                            name: flatNumber.includes(' ') ? flatNumber : `Flat ${flatNumber}`,
+                            phone: phoneNumber || null
                         }
+                    })
+                    customerId = newCustomer.id
+                }
+            } else if (phoneNumber) {
+                // Customer only provided phone
+                const existingByPhone = await tx.customer.findFirst({
+                    where: { supermarketId: user.supermarketId, phone: phoneNumber }
+                })
+                if (existingByPhone) {
+                    customerId = existingByPhone.id
+                } else {
+                    const newCustomer = await tx.customer.create({
+                        data: { supermarketId: user.supermarketId, phone: phoneNumber, name: 'Guest Customer' }
                     })
                     customerId = newCustomer.id
                 }
@@ -65,32 +89,25 @@ export async function POST(request: Request) {
                     taxTotal: 0,
                     totalAmount: totalAmount,
                     customerId,
-                    items: {
-                        create: items.map((item: any) => ({
-                            productId: item.id,
-                            quantity: item.quantity,
-                            unitPrice: item.sellingPrice,
-                            taxAmount: 0,
-                            total: item.total
-                        }))
-                    }
                 }
             })
 
-            // Stock Deduction (FIFO)
+            // Stock Deduction & SaleItem Creation
             for (const item of items) {
                 let remainingQty = item.quantity
 
-                // Get batches sorted by expiry (First Expiring First Out)
+                // Get batches: if specific batchId provided, use it. Otherwise FIFO.
                 const batches = await tx.productBatch.findMany({
                     where: {
                         productId: item.id,
+                        id: item.batchId || undefined, // Filter by batchId if present
                         quantity: { gt: 0 }
                     },
+                    include: { product: true },
                     orderBy: { expiryDate: 'asc' }
                 })
 
-                let totalAvailable = batches.reduce((acc, b) => acc + b.quantity, 0)
+                let totalAvailable = batches.reduce((acc: number, b: any) => acc + b.quantity, 0)
                 if (totalAvailable < remainingQty) {
                     throw new Error(`Insufficient stock for product: ${item.name} (Available: ${totalAvailable})`)
                 }
@@ -99,13 +116,33 @@ export async function POST(request: Request) {
                     if (remainingQty <= 0.0001) break
 
                     const deduct = Math.min(batch.quantity, remainingQty)
-
-                    // Avoid negative zero or micro-values
                     if (deduct <= 0) continue
 
-                    const newBatchQty = batch.quantity - deduct
-                    console.log(`[Stock Update] Product: ${item.name}, Batch: ${batch.batchNumber}, Deducting: ${deduct}, OldQty: ${batch.quantity}, NewQty: ${newBatchQty}`)
+                    // Get the price from batch or fallback to product
+                    const sellingPrice = (batch as any).sellingPrice !== null && (batch as any).sellingPrice !== undefined
+                        ? Number((batch as any).sellingPrice)
+                        : Number(batch.product.sellingPrice)
+                    const costPrice = (batch as any).costPrice !== null && (batch as any).costPrice !== undefined
+                        ? Number((batch as any).costPrice)
+                        : Number(batch.product.costPrice)
 
+                    // Create SaleItem for this specific batch using raw SQL to bypass Prisma Client sync issues
+                    const itemId = Math.random().toString(36).substring(2, 11) + Date.now().toString(36)
+                    await tx.$executeRawUnsafe(
+                        `INSERT INTO "SaleItem" (id, "saleId", "productId", "batchId", quantity, "unitPrice", "costPrice", "taxAmount", total) 
+                         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                        itemId,
+                        sale.id,
+                        item.id,
+                        batch.id,
+                        deduct,
+                        sellingPrice,
+                        costPrice,
+                        0,
+                        deduct * sellingPrice
+                    )
+
+                    const newBatchQty = (batch as any).quantity - deduct
                     await tx.productBatch.update({
                         where: { id: batch.id },
                         data: { quantity: Math.max(0, newBatchQty) }
@@ -113,6 +150,20 @@ export async function POST(request: Request) {
 
                     remainingQty -= deduct
                 }
+            }
+
+            // Recalculate Sale total if batch prices caused a change (Optional, but safer)
+            const finalItems = await tx.saleItem.findMany({ where: { saleId: sale.id } })
+            const finalTotal = finalItems.reduce((acc: number, i: any) => acc + Number(i.total), 0)
+
+            if (finalTotal !== totalAmount) {
+                await tx.sale.update({
+                    where: { id: sale.id },
+                    data: {
+                        subTotal: finalTotal,
+                        totalAmount: finalTotal
+                    }
+                })
             }
 
             return sale
@@ -253,6 +304,7 @@ export async function GET(request: Request) {
                 unitPrice: Number(i.unitPrice),
                 total: Number(i.total),
                 product: {
+                    id: i.product.id,
                     name: i.product.name,
                     barcode: i.product.barcode,
                     unit: i.product.unit

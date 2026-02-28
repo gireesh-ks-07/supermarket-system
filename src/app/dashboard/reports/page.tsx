@@ -8,13 +8,19 @@ import { Input } from '@/components/ui/Input'
 import {
     BarChart3, Calendar, TrendingUp, DollarSign,
     CreditCard, ShoppingBag, ArrowUpRight, ArrowDownRight,
-    Search, FileText, PieChart, Banknote, QrCode
+    Search, FileText, PieChart, Banknote, QrCode, ArrowLeft, AlertCircle, Download
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
+import { clsx, type ClassValue } from 'clsx'
+import { twMerge } from 'tailwind-merge'
+
+function cn(...inputs: ClassValue[]) {
+    return twMerge(clsx(inputs))
+}
 
 export default function ReportsPage() {
-    const [activeTab, setActiveTab] = useState<'business' | 'credit' | 'profit'>('business')
+    const [activeTab, setActiveTab] = useState<'business' | 'credit' | 'profit' | 'product'>('business')
 
     // ... (rest of simple states) ...
     // Shared Date State (used by Business and Profit)
@@ -43,27 +49,46 @@ export default function ReportsPage() {
     const [paymentMethod, setPaymentMethod] = useState('CASH')
     const [submittingPayment, setSubmittingPayment] = useState(false)
     const [availableFlats, setAvailableFlats] = useState<string[]>([])
+    const [creditSummary, setCreditSummary] = useState<any[]>([])
+    const [viewMode, setViewMode] = useState<'summary' | 'individual'>('summary')
+    const [showOnlyDue, setShowOnlyDue] = useState(false)
+
+    // All Products Sales State
+    const { data: allProductSalesData, isLoading: allProductSalesLoading } = useSWR(
+        activeTab === 'product' ? `/api/reports/all-products-sales?period=${period}&date=${selectedDate}` : null,
+        (url: string) => fetch(url).then(res => res.json())
+    )
 
     React.useEffect(() => {
         if (activeTab === 'credit') {
             fetch('/api/customers/flats')
                 .then(res => res.json())
                 .then(data => {
-                    if (Array.isArray(data)) setAvailableFlats(data)
+                    if (data.flats) {
+                        const flatList = data.flats.map((f: any) => typeof f === 'string' ? f : f.flatNumber)
+                        setAvailableFlats(flatList)
+                    }
                 })
                 .catch(err => console.error('Failed to fetch flats', err))
-        }
-    }, [activeTab])
 
-    const fetchCreditReport = async () => {
-        if (!flatNumber) {
-            toast.error('Please enter a Flat Number')
+            fetch('/api/reports/credit-summary')
+                .then(res => res.json())
+                .then(data => setCreditSummary(Array.isArray(data) ? data : []))
+                .catch(err => console.error('Failed to fetch summary', err))
+        }
+    }, [activeTab, period, selectedDate])
+
+    const fetchCreditReport = async (overrideFlat?: string) => {
+        const targetFlat = overrideFlat || flatNumber
+        if (!targetFlat) {
+            setViewMode('summary')
             return
         }
         setLoading(true)
         setReportData(null)
+        setViewMode('individual')
         try {
-            const res = await fetch(`/api/reports/flat-sales?flatNumber=${flatNumber.trim()}&filter=${filterType}&value=${filterValue}`)
+            const res = await fetch(`/api/reports/flat-sales?flatNumber=${targetFlat.trim()}&filter=${filterType}&value=${filterValue}`)
             const data = await res.json()
 
             if (!res.ok) {
@@ -119,6 +144,10 @@ export default function ReportsPage() {
         alert("CSV Download not implemented for this view yet.")
     }
 
+    const filteredCreditSummary = showOnlyDue
+        ? creditSummary.filter(item => item.balance > 0)
+        : creditSummary
+
     const transactions = reportData ? [
         ...reportData.sales.map((s: any) => ({ ...s, type: 'SALE', amount: Number(s.totalAmount) })),
         ...(reportData.payments || []).map((p: any) => ({ ...p, type: 'PAYMENT', invoiceNumber: 'PAYMENT', paymentMode: p.type || 'PAYMENT', items: [], amount: Number(p.amount) }))
@@ -156,11 +185,18 @@ export default function ReportsPage() {
                     >
                         <CreditCard className="md:mr-2" size={16} /> <span className="hidden md:inline">Credit Reports</span>
                     </Button>
+                    <Button
+                        variant={activeTab === 'product' ? undefined : 'secondary'}
+                        onClick={() => setActiveTab('product')}
+                        className="flex-1 md:flex-none text-xs md:text-sm"
+                    >
+                        <ShoppingBag className="md:mr-2" size={16} /> <span className="hidden md:inline">Product History</span>
+                    </Button>
                 </div>
             </div>
 
-            {/* SHARED FILTERS for Business and Profit */}
-            {(activeTab === 'business' || activeTab === 'profit') && (
+            {/* SHARED FILTERS for Business, Profit and Product */}
+            {(activeTab === 'business' || activeTab === 'profit' || activeTab === 'product') && (
                 <Card className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-900/80 border-slate-800/50 w-fit mb-6 backdrop-blur-sm">
                     {['daily', 'weekly', 'monthly', 'yearly'].map((p) => (
                         <button
@@ -468,205 +504,431 @@ export default function ReportsPage() {
 
             {activeTab === 'credit' && (
                 <div className="space-y-6">
-                    <Card className="p-6">
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                            <div>
-                                <label className="block text-sm text-slate-400 mb-1">Flat Number</label>
+                    <Card className="p-4 bg-slate-900/40 border-white/5 shadow-2xl backdrop-blur-md">
+                        <div className="flex flex-wrap items-end gap-6">
+                            <div className="flex-1 min-w-[200px]">
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2 pl-1">Flat Number</label>
                                 <select
                                     value={flatNumber}
                                     onChange={(e) => setFlatNumber(e.target.value)}
-                                    className="w-full h-10 px-3 rounded-md bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    className="w-full h-12 px-4 rounded-xl bg-white/[0.03] border border-white/10 text-white text-sm font-bold focus:outline-none focus:border-purple-500 transition-all appearance-none cursor-pointer hover:bg-white/[0.05]"
                                 >
-                                    <option value="" className="bg-slate-800">Select Flat</option>
+                                    <option value="" className="bg-slate-900">Select Flat / Room</option>
                                     {availableFlats.map(flat => (
-                                        <option key={flat} value={flat} className="bg-slate-800">{flat}</option>
+                                        <option key={flat} value={flat} className="bg-slate-900">{flat}</option>
                                     ))}
                                 </select>
                             </div>
 
-                            <div>
-                                <label className="block text-sm text-slate-400 mb-1">Report Type</label>
+                            <div className="w-48">
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2 pl-1">Report Type</label>
                                 <select
-                                    className="w-full h-10 px-3 rounded-md bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    className="w-full h-12 px-4 rounded-xl bg-white/[0.03] border border-white/10 text-white text-sm font-bold focus:outline-none focus:border-purple-500 transition-all appearance-none cursor-pointer hover:bg-white/[0.05]"
                                     value={filterType}
                                     onChange={(e) => setFilterType(e.target.value)}
                                 >
-                                    <option value="date" className="bg-slate-800">Daily</option>
-                                    <option value="month" className="bg-slate-800">Monthly</option>
-                                    <option value="year" className="bg-slate-800">Yearly</option>
+                                    <option value="date" className="bg-slate-900">Daily</option>
+                                    <option value="month" className="bg-slate-900">Monthly</option>
+                                    <option value="year" className="bg-slate-900">Yearly</option>
                                 </select>
                             </div>
-                            <div>
-                                <label className="block text-sm text-slate-400 mb-1">Select Date/Period</label>
+                            <div className="w-56">
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2 pl-1">Select Date/Period</label>
                                 <Input
                                     type={filterType === 'date' ? 'date' : filterType === 'month' ? 'month' : 'number'}
                                     value={filterValue}
                                     onChange={(e) => setFilterValue(e.target.value)}
-                                    className="bg-white/5 border-white/10 w-full h-10"
+                                    className="bg-white/[0.03] border-white/10 w-full h-12 rounded-xl text-white font-bold h-12"
                                     wrapperClassName="mb-0"
                                     placeholder={filterType === 'year' ? 'YYYY' : ''}
                                 />
                             </div>
-                            <div>
-                                <label className="block text-sm text-slate-400 mb-1 opacity-0">Action</label>
+
+                            <div className="flex gap-2">
                                 <Button
-                                    className="bg-purple-600 hover:bg-purple-500 text-white w-full h-10"
-                                    onClick={fetchCreditReport}
+                                    className="bg-purple-600 hover:bg-purple-500 text-white h-12 px-8 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg shadow-purple-900/20 transition-all active:scale-95"
+                                    onClick={() => fetchCreditReport()}
                                     disabled={loading}
                                 >
-                                    {loading ? 'Fetching...' : 'Show Report'}
+                                    {loading ? '...' : (
+                                        <div className="flex items-center gap-2">
+                                            <Search size={16} /> SHOW
+                                        </div>
+                                    )}
+                                </Button>
+                                <Button
+                                    variant="secondary"
+                                    className="h-12 px-5 flex items-center justify-center rounded-xl bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 hover:text-white transition-all shadow-lg"
+                                    onClick={() => {
+                                        const link = document.createElement('a');
+                                        link.href = `/api/reports/credit-summary-csv?onlyDue=${showOnlyDue}`;
+                                        link.download = `credit_summary_${showOnlyDue ? 'pending_' : ''}${new Date().toISOString().split('T')[0]}.csv`;
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        document.body.removeChild(link);
+                                    }}
+                                    title="Export Current View to CSV"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <Download size={18} />
+                                        <span className="hidden lg:inline text-[10px] font-black uppercase tracking-widest">CSV</span>
+                                    </div>
                                 </Button>
                             </div>
                         </div>
                     </Card>
 
-                    {
-                        reportData && (
-                            <div className="space-y-6 fade-in">
-                                {/* Summary */}
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <Card className="p-6 bg-gradient-to-br from-red-500/20 to-transparent border border-red-500/30 flex flex-col justify-between relative overflow-hidden">
-                                        <div className="relative z-10">
-                                            <p className="text-red-400 mb-2 font-bold uppercase text-xs tracking-widest">Outstanding Balance</p>
-                                            <h2 className="text-4xl font-black text-white">{formatCurrency(reportData.balance || 0)}</h2>
-                                            <p className="text-xs text-slate-400 mt-2 font-medium">Flat: {reportData.customer?.flatNumber}</p>
-                                        </div>
-                                        <Button
-                                            onClick={() => setShowPaymentModal(true)}
-                                            className="mt-6 bg-red-500 hover:bg-red-600 text-white w-full border-0 font-bold uppercase tracking-wider text-xs py-5 rounded-xl shadow-lg shadow-red-900/20"
-                                        >
-                                            Pay / Settle
-                                        </Button>
-                                        <div className="absolute -top-4 -right-4 p-4 opacity-10 rotate-12">
-                                            <DollarSign size={80} />
-                                        </div>
-                                    </Card>
-                                    <Card className="p-6 bg-white/5 border border-white/10 flex flex-col justify-center gap-6">
-                                        <div>
-                                            <p className="text-slate-500 font-bold text-xs uppercase tracking-widest mb-1">Lifetime Credit</p>
-                                            <p className="text-2xl font-bold text-white">{formatCurrency(reportData.totalCredit || 0)}</p>
-                                        </div>
-                                        <div className="pt-6 border-t border-white/10">
-                                            <p className="text-slate-500 font-bold text-xs uppercase tracking-widest mb-1">Lifetime Paid</p>
-                                            <p className="text-2xl font-bold text-emerald-400">{formatCurrency(reportData.totalPaid || 0)}</p>
-                                        </div>
-                                    </Card>
-                                    <Card className="p-6 bg-white/5 border border-white/10 flex flex-col justify-center">
-                                        <p className="text-slate-500 mb-2 font-bold text-xs uppercase tracking-widest">Period Sales</p>
-                                        <h2 className="text-3xl font-bold text-white">{formatCurrency(reportData.total || 0)}</h2>
-                                        <p className="text-xs text-slate-500 mt-2 italic">Current selection total</p>
-                                    </Card>
+                    {viewMode === 'summary' && (
+                        <Card className="overflow-hidden border-white/5 bg-slate-900/40 shadow-2xl transition-all">
+                            <div className="p-6 bg-gradient-to-r from-purple-900/10 via-slate-900/50 to-transparent border-b border-white/5 flex flex-wrap justify-between items-center gap-6">
+                                <div className="flex flex-col gap-1">
+                                    <h3 className="text-sm font-black text-white tracking-[0.3em] uppercase opacity-80 pl-1">All-Flats Credit Hub</h3>
+                                    <p className="text-xs text-slate-500 font-bold tracking-wide italic">Activity overview across all residential accounts</p>
                                 </div>
-
-                                {/* Sales Table */}
-                                <Card className="overflow-hidden">
-                                    <div className="p-4 border-b border-white/10 bg-white/5">
-                                        <h3 className="font-bold text-white">Transaction History</h3>
+                                <div className="flex items-center gap-6">
+                                    <button
+                                        onClick={() => setShowOnlyDue(!showOnlyDue)}
+                                        className={clsx(
+                                            "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all border shadow-lg",
+                                            showOnlyDue ? "bg-red-500/10 text-red-400 border-red-500/30 shadow-red-900/10" : "bg-white/5 text-slate-500 border-white/10 hover:text-slate-300 hover:bg-white/10"
+                                        )}
+                                    >
+                                        <AlertCircle size={14} className={clsx(showOnlyDue ? "animate-pulse" : "opacity-40")} />
+                                        Show Pending Dues
+                                    </button>
+                                    <div className="h-10 w-px bg-white/10 hidden md:block" />
+                                    <div className="flex flex-col text-right">
+                                        <span className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em] mb-1">Global Outstanding</span>
+                                        <span className="text-2xl font-black bg-gradient-to-r from-red-400 to-orange-500 bg-clip-text text-transparent drop-shadow-sm">
+                                            {formatCurrency(creditSummary.reduce((acc, curr) => acc + (curr.balance || 0), 0))}
+                                        </span>
                                     </div>
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-sm text-left">
-                                            <thead className="text-slate-400 bg-white/5 font-bold uppercase text-xs tracking-wider">
-                                                <tr>
-                                                    <th className="px-6 py-3">Date</th>
-                                                    <th className="px-6 py-3">Invoice</th>
-                                                    <th className="px-6 py-3">Mode</th>
-                                                    <th className="px-6 py-3">Items</th>
-                                                    <th className="px-6 py-3 text-right">Amount</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-white/5">
-                                                {transactions.length > 0 ? transactions.map((txn: any) => (
-                                                    <tr key={txn.id} className={`transition-colors ${txn.type === 'PAYMENT' ? 'bg-green-500/5 hover:bg-green-500/10' : 'hover:bg-white/5'}`}>
-                                                        <td className="px-6 py-4 font-medium text-white">
-                                                            {new Date(txn.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).split(' ').join('/')}
-                                                            <div className="text-xs text-slate-500">{new Date(txn.date).toLocaleTimeString()}</div>
-                                                        </td>
-                                                        <td className="px-6 py-4 text-slate-300">
-                                                            {txn.type === 'PAYMENT' ? <span className="text-green-400 font-mono">PAYMENT</span> : txn.invoiceNumber}
-                                                            {txn.note && <div className="text-xs text-slate-500 italic">{txn.note}</div>}
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            <div className="relative group/mode">
-                                                                <div className="flex flex-col gap-1 items-start">
-                                                                    <button className={`text-xs font-bold px-2 py-1 rounded flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity ${txn.paymentMode === 'CREDIT' ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
-                                                                        {txn.paymentMode}
-                                                                        {txn.type === 'SALE' && <ArrowDownRight size={10} />}
-                                                                    </button>
-                                                                    {txn.virtualStatus && txn.paymentMode === 'CREDIT' && (
-                                                                        <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border ${txn.virtualStatus === 'PAID' ? 'border-green-500/30 text-green-400 bg-green-500/10' :
-                                                                            txn.virtualStatus === 'PARTIAL' ? 'border-yellow-500/30 text-yellow-400 bg-yellow-500/10' :
-                                                                                'border-slate-500/30 text-slate-400 bg-slate-500/10'
-                                                                            }`}>
-                                                                            {txn.virtualStatus}
-                                                                        </span>
-                                                                    )}
-                                                                </div>
+                                </div>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="text-slate-500 bg-black/20 font-black uppercase text-[10px] tracking-[0.2em] border-b border-white/5">
+                                        <tr>
+                                            <th className="px-6 py-5">Flat / Room</th>
+                                            <th className="px-6 py-5">Customer Identity</th>
+                                            <th className="px-6 py-5 text-right">Lifetime Credit</th>
+                                            <th className="px-6 py-5 text-right border-l border-white/5">Paid</th>
+                                            <th className="px-6 py-5 text-right border-l border-white/5 bg-white/[0.02]">Balance Due</th>
+                                            <th className="px-6 py-5 text-center">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/[0.04]">
+                                        {filteredCreditSummary.map((item, i) => (
+                                            <tr key={i} className="hover:bg-purple-600/[0.03] transition-all group border-b border-transparent hover:border-white/5">
+                                                <td className="px-6 py-5">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400 font-mono text-xs font-black border border-purple-500/20">
+                                                            {item.flatNumber.substring(0, 2)}
+                                                        </div>
+                                                        <span className="font-black text-white text-sm tracking-wide">{item.flatNumber}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-5">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-slate-200 font-bold text-sm group-hover:text-purple-300 transition-colors">{item.name}</span>
+                                                        <span className="text-[10px] text-slate-600 uppercase font-black tracking-widest mt-0.5 group-hover:text-slate-500">Regular Payer</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-5 text-right text-slate-400 font-medium tabular-nums">
+                                                    {formatCurrency(item.totalCredit)}
+                                                </td>
+                                                <td className="px-6 py-5 text-right text-emerald-500 font-black border-l border-white/5 tabular-nums">
+                                                    {formatCurrency(item.totalPaid)}
+                                                </td>
+                                                <td className={cn(
+                                                    "px-6 py-5 text-right font-black border-l border-white/5 bg-white/[0.01] text-lg tabular-nums",
+                                                    item.balance > 0 ? 'text-orange-400 drop-shadow-[0_0_8px_rgba(251,146,60,0.15)]' : 'text-slate-600 opacity-40'
+                                                )}>
+                                                    <span className={item.balance > 0 ? "scale-110 inline-block" : ""}>
+                                                        {formatCurrency(item.balance)}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-5 text-center">
+                                                    <Button
+                                                        variant="ghost"
+                                                        onClick={() => { setFlatNumber(item.flatNumber); fetchCreditReport(item.flatNumber); }}
+                                                        className="h-9 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 hover:text-white hover:bg-purple-600 hover:shadow-lg hover:shadow-purple-900/40 border border-white/5 rounded-xl transition-all"
+                                                    >
+                                                        Details
+                                                    </Button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {filteredCreditSummary.length === 0 && (
+                                            <tr>
+                                                <td colSpan={6} className="px-6 py-12 text-center text-slate-500 italic">
+                                                    {showOnlyDue ? 'No pending dues found! All accounts are settled.' : 'No credit records found.'}
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </Card>
+                    )}
 
-                                                                {txn.type === 'SALE' && (
-                                                                    <div className="absolute top-full left-0 mt-1 w-32 bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden z-20 hidden group-hover/mode:block">
-                                                                        {['CASH', 'UPI', 'CREDIT'].filter(m => m !== txn.paymentMode).map(mode => (
-                                                                            <button
-                                                                                key={mode}
-                                                                                onClick={async () => {
-                                                                                    if (!confirm(`Change payment mode to ${mode}?`)) return
-                                                                                    try {
-                                                                                        const res = await fetch('/api/sales/update-mode', {
-                                                                                            method: 'POST',
-                                                                                            headers: { 'Content-Type': 'application/json' },
-                                                                                            body: JSON.stringify({ saleId: txn.id, mode })
-                                                                                        })
-                                                                                        if (res.ok) {
-                                                                                            toast.success('Updated payment mode')
-                                                                                            fetchCreditReport()
-                                                                                        } else {
-                                                                                            toast.error('Failed to update')
-                                                                                        }
-                                                                                    } catch (e) {
-                                                                                        console.error(e)
-                                                                                        toast.error('Error updating')
-                                                                                    }
-                                                                                }}
-                                                                                className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-white/10 hover:text-white"
-                                                                            >
-                                                                                Mark as {mode}
-                                                                            </button>
-                                                                        ))}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-4 text-slate-400">
-                                                            {txn.type === 'SALE' ? txn.items.map((i: any) => i.product.name).join(', ') : '-'}
-                                                        </td>
-                                                        <td className={`px-6 py-4 text-right font-bold ${txn.type === 'PAYMENT' ? 'text-green-400' : 'text-white'}`}>
-                                                            {txn.type === 'PAYMENT' ? '-' : ''}{formatCurrency(txn.amount)}
-                                                        </td>
-                                                    </tr>
-                                                )) : (
-                                                    <tr>
-                                                        <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
-                                                            No records found for this period.
-                                                        </td>
-                                                    </tr>
-                                                )}
-                                            </tbody>
-                                            {reportData.sales.length > 0 && (
-                                                <tfoot className="bg-white/5 font-bold text-white">
-                                                    <tr>
-                                                        <td colSpan={4} className="px-6 py-4 text-right">Total Period Sales</td>
-                                                        <td className="px-6 py-4 text-right">{formatCurrency(reportData.total)}</td>
-                                                    </tr>
-                                                </tfoot>
-                                            )}
-                                        </table>
+                    {viewMode === 'individual' && reportData && (
+                        <div className="space-y-6 fade-in">
+                            {/* Back Navigation */}
+                            <div className="flex items-center gap-3">
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => setViewMode('summary')}
+                                    className="p-2 h-auto text-slate-500 hover:text-white bg-white/5"
+                                >
+                                    <ArrowLeft size={16} className="mr-2" /> Back to Summary
+                                </Button>
+                                <div className="h-4 w-px bg-white/10" />
+                                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                                    Detail Review
+                                </span>
+                            </div>
+
+                            {/* Summary */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <Card className="p-6 bg-gradient-to-br from-red-500/20 to-transparent border border-red-500/30 flex flex-col justify-between relative overflow-hidden">
+                                    <div className="relative z-10">
+                                        <p className="text-red-400 mb-2 font-bold uppercase text-xs tracking-widest">Outstanding Balance</p>
+                                        <h2 className="text-4xl font-black text-white">{formatCurrency(reportData.balance || 0)}</h2>
+                                        <div className="mt-2 space-y-0.5">
+                                            <p className="text-sm text-white font-bold">{reportData.customer?.name}</p>
+                                            <p className="text-xs text-slate-400 font-medium">Room / Flat: {reportData.customer?.flatNumber}</p>
+                                        </div>
+                                    </div>
+                                    <Button
+                                        onClick={() => setShowPaymentModal(true)}
+                                        className="mt-6 bg-red-500 hover:bg-red-600 text-white w-full border-0 font-bold uppercase tracking-wider text-xs py-5 rounded-xl shadow-lg shadow-red-900/20"
+                                    >
+                                        Pay / Settle
+                                    </Button>
+                                    <div className="absolute -top-4 -right-4 p-4 opacity-10 rotate-12">
+                                        <DollarSign size={80} />
                                     </div>
                                 </Card>
+                                <Card className="p-6 bg-white/5 border border-white/10 flex flex-col justify-center gap-6">
+                                    <div>
+                                        <p className="text-slate-500 font-bold text-xs uppercase tracking-widest mb-1">Lifetime Credit</p>
+                                        <p className="text-2xl font-bold text-white">{formatCurrency(reportData.totalCredit || 0)}</p>
+                                    </div>
+                                    <div className="pt-6 border-t border-white/10">
+                                        <p className="text-slate-500 font-bold text-xs uppercase tracking-widest mb-1">Lifetime Paid</p>
+                                        <p className="text-2xl font-bold text-emerald-400">{formatCurrency(reportData.totalPaid || 0)}</p>
+                                    </div>
+                                </Card>
+                                <Card className="p-6 bg-white/5 border border-white/10 flex flex-col justify-center">
+                                    <p className="text-slate-500 mb-2 font-bold text-xs uppercase tracking-widest">Period Sales</p>
+                                    <h2 className="text-3xl font-bold text-white">{formatCurrency(reportData.total || 0)}</h2>
+                                    <p className="text-xs text-slate-500 mt-2 italic">Current selection total</p>
+                                </Card>
                             </div>
-                        )
-                    }
-                </div >
-            )
-            }
+
+                            {/* Sales Table */}
+                            <Card className="overflow-hidden">
+                                <div className="p-4 border-b border-white/10 bg-white/5">
+                                    <h3 className="font-bold text-white">Transaction History</h3>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm text-left">
+                                        <thead className="text-slate-400 bg-white/5 font-bold uppercase text-xs tracking-wider">
+                                            <tr>
+                                                <th className="px-6 py-3">Date</th>
+                                                <th className="px-6 py-3">Invoice</th>
+                                                <th className="px-6 py-3">Customer</th>
+                                                <th className="px-6 py-3">Mode</th>
+                                                <th className="px-6 py-3">Items</th>
+                                                <th className="px-6 py-3 text-right">Amount</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-white/5">
+                                            {transactions.length > 0 ? transactions.map((txn: any) => (
+                                                <tr key={txn.id} className={`transition-colors ${txn.type === 'PAYMENT' ? 'bg-green-500/5 hover:bg-green-500/10' : 'hover:bg-white/5'}`}>
+                                                    <td className="px-6 py-4 font-medium text-white">
+                                                        {new Date(txn.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).split(' ').join('/')}
+                                                        <div className="text-xs text-slate-500">{new Date(txn.date).toLocaleTimeString()}</div>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-slate-300">
+                                                        {txn.type === 'PAYMENT' ? <span className="text-green-400 font-mono">PAYMENT</span> : txn.invoiceNumber}
+                                                        {txn.note && <div className="text-xs text-slate-500 italic">{txn.note}</div>}
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-white font-bold">{reportData.customer?.name}</span>
+                                                            <span className="text-[10px] text-slate-500">Flat {reportData.customer?.flatNumber}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="relative group/mode">
+                                                            <div className="flex flex-col gap-1 items-start">
+                                                                <button className={`text-xs font-bold px-2 py-1 rounded flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity ${txn.paymentMode === 'CREDIT' ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
+                                                                    {txn.paymentMode}
+                                                                    {txn.type === 'SALE' && <ArrowDownRight size={10} />}
+                                                                </button>
+                                                                {txn.virtualStatus && txn.paymentMode === 'CREDIT' && (
+                                                                    <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border ${txn.virtualStatus === 'PAID' ? 'border-green-500/30 text-green-400 bg-green-500/10' :
+                                                                        txn.virtualStatus === 'PARTIAL' ? 'border-yellow-500/30 text-yellow-400 bg-yellow-500/10' :
+                                                                            'border-slate-500/30 text-slate-400 bg-slate-500/10'
+                                                                        }`}>
+                                                                        {txn.virtualStatus}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+
+                                                            {txn.type === 'SALE' && (
+                                                                <div className="absolute top-full left-0 mt-1 w-32 bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden z-20 hidden group-hover/mode:block">
+                                                                    {['CASH', 'UPI', 'CREDIT'].filter(m => m !== txn.paymentMode).map(mode => (
+                                                                        <button
+                                                                            key={mode}
+                                                                            onClick={async () => {
+                                                                                if (!confirm(`Change payment mode to ${mode}?`)) return
+                                                                                try {
+                                                                                    const res = await fetch('/api/sales/update-mode', {
+                                                                                        method: 'POST',
+                                                                                        headers: { 'Content-Type': 'application/json' },
+                                                                                        body: JSON.stringify({ saleId: txn.id, mode })
+                                                                                    })
+                                                                                    if (res.ok) {
+                                                                                        toast.success('Updated payment mode')
+                                                                                        fetchCreditReport()
+                                                                                    } else {
+                                                                                        toast.error('Failed to update')
+                                                                                    }
+                                                                                } catch (e) {
+                                                                                    console.error(e)
+                                                                                    toast.error('Error updating')
+                                                                                }
+                                                                            }}
+                                                                            className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-white/10 hover:text-white"
+                                                                        >
+                                                                            Mark as {mode}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-slate-400">
+                                                        {txn.type === 'SALE' ? txn.items.map((i: any) => i.product.name).join(', ') : '-'}
+                                                    </td>
+                                                    <td className={`px-6 py-4 text-right font-bold ${txn.type === 'PAYMENT' ? 'text-green-400' : 'text-white'}`}>
+                                                        {txn.type === 'PAYMENT' ? '-' : ''}{formatCurrency(txn.amount)}
+                                                    </td>
+                                                </tr>
+                                            )) : (
+                                                <tr>
+                                                    <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
+                                                        No records found for this period.
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                        {reportData.sales.length > 0 && (
+                                            <tfoot className="bg-white/5 font-bold text-white">
+                                                <tr>
+                                                    <td colSpan={5} className="px-6 py-4 text-right">Total Period Sales</td>
+                                                    <td className="px-6 py-4 text-right">{formatCurrency(reportData.total)}</td>
+                                                </tr>
+                                            </tfoot>
+                                        )}
+                                    </table>
+                                </div>
+                            </Card>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ALL PRODUCTS SALES TAB */}
+            {activeTab === 'product' && (
+                <div className="space-y-6 fade-in">
+                    <Card className="overflow-hidden border-white/5 bg-slate-900/40 shadow-2xl transition-all">
+                        <div className="p-6 bg-gradient-to-r from-purple-900/10 via-slate-900/50 to-transparent border-b border-white/5 flex flex-wrap justify-between items-center gap-6">
+                            <div className="flex flex-col gap-1">
+                                <h3 className="text-sm font-black text-white tracking-[0.3em] uppercase opacity-80 pl-1">Product Sales Report</h3>
+                                <p className="text-xs text-slate-500 font-bold tracking-wide italic">Comprehensive view of all products sold in the selected period</p>
+                            </div>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-left">
+                                <thead className="text-slate-500 bg-black/20 font-black uppercase text-[10px] tracking-[0.2em] border-b border-white/5">
+                                    <tr>
+                                        <th className="px-6 py-5">Product Details</th>
+                                        <th className="px-6 py-5 text-center">Quantity Sold</th>
+                                        <th className="px-6 py-5 text-right">Revenue Generated</th>
+                                        <th className="px-6 py-5 text-right border-l border-white/5 bg-white/[0.02]">Estimated Profit</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/[0.04]">
+                                    {allProductSalesLoading ? (
+                                        <tr>
+                                            <td colSpan={4} className="px-6 py-12 text-center text-slate-500 font-bold blur-[1px] animate-pulse">
+                                                Loading product sales data...
+                                            </td>
+                                        </tr>
+                                    ) : allProductSalesData && allProductSalesData.length > 0 ? (
+                                        allProductSalesData.map((item: any) => (
+                                            <tr key={item.id} className="hover:bg-purple-600/[0.03] transition-all group border-b border-transparent hover:border-white/5">
+                                                <td className="px-6 py-5">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400 font-mono text-xs font-black border border-purple-500/20">
+                                                            {item.name.substring(0, 2).toUpperCase()}
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="font-bold text-white text-sm group-hover:text-purple-300 transition-colors">{item.name}</span>
+                                                            <div className="flex items-center gap-2 mt-1">
+                                                                <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-white/5 text-slate-400">{item.category}</span>
+                                                                <span className="text-[10px] font-mono text-slate-600">{item.barcode}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-5 text-center">
+                                                    <span className="font-black text-white text-lg">{Number(item.qty.toFixed(3))}</span>
+                                                    <span className="text-slate-500 text-[10px] ml-1 uppercase font-bold tracking-wider">{item.unit}</span>
+                                                </td>
+                                                <td className="px-6 py-5 text-right text-emerald-400 font-black tabular-nums text-lg">
+                                                    {formatCurrency(item.revenue)}
+                                                </td>
+                                                <td className="px-6 py-5 text-right font-black border-l border-white/5 bg-white/[0.01] text-lg tabular-nums text-emerald-500 drop-shadow-[0_0_8px_rgba(16,185,129,0.15)]">
+                                                    {formatCurrency(item.profit)}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={4} className="px-6 py-12 text-center text-slate-500 italic">
+                                                No products were sold during this period.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                                {allProductSalesData && allProductSalesData.length > 0 && (
+                                    <tfoot className="bg-black/40 border-t border-white/10">
+                                        <tr>
+                                            <td className="px-6 py-5 text-right font-black text-slate-400 uppercase tracking-widest text-[10px]">Total</td>
+                                            <td className="px-6 py-5 text-center font-black text-white">
+                                                {Number(allProductSalesData.reduce((acc: number, item: any) => acc + item.qty, 0).toFixed(3))} Items
+                                            </td>
+                                            <td className="px-6 py-5 text-right font-black text-emerald-400 tabular-nums">
+                                                {formatCurrency(allProductSalesData.reduce((acc: number, item: any) => acc + item.revenue, 0))}
+                                            </td>
+                                            <td className="px-6 py-5 text-right font-black text-emerald-500 tabular-nums border-l border-white/5 bg-white/[0.01]">
+                                                {formatCurrency(allProductSalesData.reduce((acc: number, item: any) => acc + item.profit, 0))}
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                )}
+                            </table>
+                        </div>
+                    </Card>
+                </div>
+            )}
+
             {/* Payment Modal */}
             {showPaymentModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">

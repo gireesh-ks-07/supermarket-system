@@ -21,9 +21,12 @@ type StockBatch = {
     quantity: number
     expiryDate: string | null
     productId: string
+    costPrice: number | null
+    sellingPrice: number | null
     product: {
         name: string
         unit: string
+        barcode: string
     }
 }
 
@@ -96,7 +99,9 @@ function InventoryView() {
         productId: '',
         batchNumber: '',
         quantity: '1',
-        expiryDate: ''
+        expiryDate: '',
+        costPrice: '',
+        sellingPrice: ''
     })
     const [submitting, setSubmitting] = useState(false)
     const [editBatchId, setEditBatchId] = useState<string | null>(null)
@@ -119,7 +124,7 @@ function InventoryView() {
             if (res.ok) {
                 toast.success(editBatchId ? 'Stock updated successfully' : 'Stock added successfully')
                 setIsAddModalOpen(false)
-                setFormData({ productId: '', batchNumber: '', quantity: '1', expiryDate: '' })
+                setFormData({ productId: '', batchNumber: '', quantity: '1', expiryDate: '', costPrice: '', sellingPrice: '' })
                 setEditBatchId(null)
                 mutate('/api/stock/batches')
             } else {
@@ -135,7 +140,8 @@ function InventoryView() {
 
     const filteredBatches = batches?.filter(b =>
         b.batchNumber.toLowerCase().includes(search.toLowerCase()) ||
-        b.product.name.toLowerCase().includes(search.toLowerCase())
+        b.product.name.toLowerCase().includes(search.toLowerCase()) ||
+        b.product.barcode.toLowerCase().includes(search.toLowerCase())
     ) || []
 
     const expiringSoon = batches?.filter(b => {
@@ -283,7 +289,7 @@ function InventoryView() {
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             className="w-full bg-slate-950/50 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm text-white focus:border-purple-500 transition-all outline-none placeholder:text-slate-600"
-                            placeholder="Search batch or product..."
+                            placeholder="Search by name, barcode, or batch..."
                         />
                     </div>
                     <div className="flex flex-wrap gap-2 w-full lg:w-auto">
@@ -314,7 +320,7 @@ function InventoryView() {
                                 <Button
                                     onClick={() => {
                                         setEditBatchId(null)
-                                        setFormData({ productId: '', batchNumber: '', quantity: '1', expiryDate: '' })
+                                        setFormData({ productId: '', batchNumber: '', quantity: '1', expiryDate: '', costPrice: '', sellingPrice: '' })
                                         setIsAddModalOpen(true)
                                     }}
                                     className="flex-1 lg:flex-none text-sm font-bold transition-all h-10 px-4 rounded-xl shadow-lg shadow-purple-900/40"
@@ -354,28 +360,51 @@ function InventoryView() {
                                             <p className="text-sm text-slate-500 font-mono mt-0.5 tracking-tight">#{item.batchNumber}</p>
                                         </div>
                                         {canManageStock && (
-                                            <button
-                                                onClick={() => {
-                                                    setEditBatchId(item.id)
-                                                    setFormData({
-                                                        productId: item.productId,
-                                                        batchNumber: item.batchNumber,
-                                                        quantity: item.quantity.toString(),
-                                                        expiryDate: item.expiryDate ? new Date(item.expiryDate).toISOString().split('T')[0] : ''
-                                                    })
-                                                    setIsAddModalOpen(true)
-                                                }}
-                                                className="absolute top-4 right-4 p-2 bg-white/5 rounded-lg text-slate-400 hover:text-white transition-all shadow-lg"
-                                            >
-                                                <Edit2 size={14} />
-                                            </button>
+                                            (() => {
+                                                const isExpired = item.expiryDate && new Date(item.expiryDate) < new Date()
+                                                const isOutOfStock = item.quantity <= 0
+                                                const canEdit = !isExpired && !isOutOfStock
+
+                                                return (
+                                                    <button
+                                                        onClick={() => {
+                                                            if (!canEdit) return
+                                                            setEditBatchId(item.id)
+                                                            setFormData({
+                                                                productId: item.productId,
+                                                                batchNumber: item.batchNumber,
+                                                                quantity: item.quantity.toString(),
+                                                                expiryDate: item.expiryDate ? new Date(item.expiryDate).toISOString().split('T')[0] : '',
+                                                                costPrice: item.costPrice?.toString() || '',
+                                                                sellingPrice: item.sellingPrice?.toString() || ''
+                                                            })
+                                                            setIsAddModalOpen(true)
+                                                        }}
+                                                        disabled={!canEdit}
+                                                        className={`absolute top-4 right-4 p-2 rounded-lg transition-all shadow-lg ${canEdit ? 'bg-white/5 text-slate-400 hover:text-white' : 'bg-slate-800/50 text-slate-600 cursor-not-allowed'}`}
+                                                        title={isExpired ? "Cannot edit expired stock" : isOutOfStock ? "Cannot edit out of stock items" : "Edit Stock"}
+                                                    >
+                                                        <Edit2 size={14} />
+                                                    </button>
+                                                )
+                                            })()
                                         )}
                                     </div>
 
                                     <div className="flex items-center justify-between pt-2 border-t border-white/5">
                                         <div>
-                                            <p className="text-[9px] text-slate-500 font-bold transition-all mb-1">Available Qty</p>
-                                            <p className="text-xl font-bold text-emerald-400">{item.quantity} <span className="text-sm text-slate-500 font-bold uppercase">{item.product.unit}</span></p>
+                                            <p className="text-[9px] text-slate-500 font-bold transition-all mb-1">Pricing (C/S)</p>
+                                            <p className="text-sm font-bold text-white">
+                                                {formatCurrency(Number(item.costPrice || 0))} /
+                                                <span className="text-purple-400 ml-1">{formatCurrency(Number(item.sellingPrice || 0))}</span>
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[9px] text-slate-500 font-bold transition-all mb-1">Qty</p>
+                                            <p className="text-lg font-bold text-emerald-400">
+                                                {Number(item.quantity).toFixed(3)}
+                                                <span className="text-[10px] text-slate-500 font-bold uppercase ml-1">{item.product.unit}</span>
+                                            </p>
                                         </div>
                                         <div className="text-right">
                                             <p className="text-[9px] text-slate-500 font-bold transition-all mb-1">Expiry</p>
@@ -411,6 +440,7 @@ function InventoryView() {
                                     <tr>
                                         <th className="p-4">Batch Details</th>
                                         <th className="p-4">Product Name</th>
+                                        <th className="p-4">Cost/Sell Price</th>
                                         <th className="p-4 text-center">Available Qty</th>
                                         <th className="p-4">Expiry Date</th>
                                         <th className="p-4 text-center">Health Status</th>
@@ -425,7 +455,13 @@ function InventoryView() {
                                                 {item.product.name}
                                                 <span className="text-sm font-bold text-slate-500 ml-2 opacity-60">({item.product.unit})</span>
                                             </td>
-                                            <td className="p-4 text-center font-bold text-emerald-400 text-base">{item.quantity}</td>
+                                            <td className="p-4">
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs text-slate-500">C: {formatCurrency(Number(item.costPrice || 0))}</span>
+                                                    <span className="text-sm font-bold text-purple-400">S: {formatCurrency(Number(item.sellingPrice || 0))}</span>
+                                                </div>
+                                            </td>
+                                            <td className="p-4 text-center font-bold text-emerald-400 text-base">{Number(item.quantity).toFixed(3)}</td>
                                             <td className="p-4 text-slate-400 font-medium">
                                                 {item.expiryDate ? new Date(item.expiryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
                                             </td>
@@ -440,21 +476,34 @@ function InventoryView() {
                                             </td>
                                             {canManageStock && (
                                                 <td className="p-4 text-right">
-                                                    <button
-                                                        onClick={() => {
-                                                            setEditBatchId(item.id)
-                                                            setFormData({
-                                                                productId: item.productId,
-                                                                batchNumber: item.batchNumber,
-                                                                quantity: item.quantity.toString(),
-                                                                expiryDate: item.expiryDate ? new Date(item.expiryDate).toISOString().split('T')[0] : ''
-                                                            })
-                                                            setIsAddModalOpen(true)
-                                                        }}
-                                                        className="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-all"
-                                                    >
-                                                        <Edit2 size={16} />
-                                                    </button>
+                                                    {(() => {
+                                                        const isExpired = item.expiryDate && new Date(item.expiryDate) < new Date()
+                                                        const isOutOfStock = item.quantity <= 0
+                                                        const canEdit = !isExpired && !isOutOfStock
+
+                                                        return (
+                                                            <button
+                                                                onClick={() => {
+                                                                    if (!canEdit) return
+                                                                    setEditBatchId(item.id)
+                                                                    setFormData({
+                                                                        productId: item.productId,
+                                                                        batchNumber: item.batchNumber,
+                                                                        quantity: item.quantity.toString(),
+                                                                        expiryDate: item.expiryDate ? new Date(item.expiryDate).toISOString().split('T')[0] : '',
+                                                                        costPrice: item.costPrice?.toString() || '',
+                                                                        sellingPrice: item.sellingPrice?.toString() || ''
+                                                                    })
+                                                                    setIsAddModalOpen(true)
+                                                                }}
+                                                                disabled={!canEdit}
+                                                                className={`p-2 rounded-lg transition-all ${canEdit ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'text-slate-700 cursor-not-allowed'}`}
+                                                                title={isExpired ? "Cannot edit expired stock" : isOutOfStock ? "Cannot edit out of stock items" : "Edit Stock"}
+                                                            >
+                                                                <Edit2 size={16} />
+                                                            </button>
+                                                        )
+                                                    })()}
                                                 </td>
                                             )}
                                         </tr>
@@ -502,6 +551,24 @@ function InventoryView() {
                                         placeholder="e.g. BATCH-2024-001"
                                         disabled={!!editBatchId}
                                     />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <Input
+                                            label="Cost Price"
+                                            type="number"
+                                            step="0.01"
+                                            value={formData.costPrice}
+                                            onChange={e => setFormData({ ...formData, costPrice: e.target.value })}
+                                            placeholder="Optional"
+                                        />
+                                        <Input
+                                            label="Selling Price"
+                                            type="number"
+                                            step="0.01"
+                                            value={formData.sellingPrice}
+                                            onChange={e => setFormData({ ...formData, sellingPrice: e.target.value })}
+                                            placeholder="Optional"
+                                        />
+                                    </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <Input
                                             label="Quantity"

@@ -17,7 +17,9 @@ type Product = {
     taxPercent: number
     unit: string
     stock: number
-    expiredStock?: number // Added
+    expiredStock?: number
+    batchId?: string | null
+    batchNumber?: string | null
 }
 
 type CartItem = Product & {
@@ -29,9 +31,12 @@ type CartItem = Product & {
 export default function POSPage() {
     const [query, setQuery] = useState('')
     const [searchResults, setSearchResults] = useState<Product[]>([])
+    const [selectedIndex, setSelectedIndex] = useState(0)
     const [cart, setCart] = useState<CartItem[]>([])
     const [loading, setLoading] = useState(false)
+    const [isSearching, setIsSearching] = useState(false)
     const searchInputRef = useRef<HTMLInputElement>(null)
+    const resultsContainerRef = useRef<HTMLDivElement>(null)
     const router = useRouter()
 
     // Auto focus search for barcode scanning
@@ -45,42 +50,68 @@ export default function POSPage() {
         return () => window.removeEventListener('keydown', focusSearch)
     }, [])
 
+    // Scroll into view during keyboard navigation
+    useEffect(() => {
+        if (resultsContainerRef.current && searchResults.length > 0) {
+            const selectedItem = resultsContainerRef.current.children[selectedIndex] as HTMLElement
+            if (selectedItem) {
+                selectedItem.scrollIntoView({
+                    block: 'nearest',
+                    behavior: 'smooth'
+                })
+            }
+        }
+    }, [selectedIndex, searchResults])
+
     const searchProduct = async (q: string) => {
         if (!q) {
             setSearchResults([])
+            setSelectedIndex(0)
             return
         }
+        setIsSearching(true)
         try {
             const res = await fetch(`/api/products/search?q=${q}`)
             const data = await res.json()
-            if (data) {
-                // If exact barcode match, we might still want to add immediately if triggered by ENTER
-                // But generally populating the list is safer UX unless we are sure it's a barcode scanner
-                if (data.length === 1 && data[0].barcode === q) {
-                    // Exact barcode match usually implies scanner
-                    addToCart(data[0])
+            if (data && data.length > 0) {
+                // Check if this looks like a barcode scan (exact match and length >= 8)
+                const exactBarcodeMatches = data.filter((item: any) => item.barcode === q)
+
+                if (exactBarcodeMatches.length > 0 && q.length >= 8) {
+                    // Auto-add the first available batch (FIFO, sorted by API)
+                    addToCart(exactBarcodeMatches[0])
                     setQuery('')
                     setSearchResults([])
                 } else {
                     setSearchResults(data)
+                    setSelectedIndex(0)
                 }
+            } else {
+                setSearchResults([])
+                setSelectedIndex(0)
             }
-        } catch (e) { console.error(e) }
+        } catch (e) {
+            console.error(e)
+            setSearchResults([])
+            setSelectedIndex(0)
+        } finally {
+            setIsSearching(false)
+        }
     }
 
     const addToCart = (product: any) => {
         setCart(prev => {
-            const existing = prev.find(p => p.id === product.id)
+            const existing = prev.find(p => p.id === product.id && p.batchId === product.batchId)
             if (existing) {
-                return prev.map(p => p.id === product.id ? { ...p, quantity: p.quantity + 1, total: (p.quantity + 1) * Number(p.sellingPrice) } : p)
+                return prev.map(p => (p.id === product.id && p.batchId === product.batchId) ? { ...p, quantity: p.quantity + 1, total: (p.quantity + 1) * Number(p.sellingPrice) } : p)
             }
             return [...prev, { ...product, cartId: Math.random().toString(), quantity: 1, total: Number(product.sellingPrice) }]
         })
     }
 
-    const updateQuantity = (id: string, delta: number) => {
+    const updateQuantity = (cartId: string, delta: number) => {
         setCart(prev => prev.map(p => {
-            if (p.id === id) {
+            if (p.cartId === cartId) {
                 const newQ = p.quantity + delta
                 if (newQ <= 0) return p
                 return { ...p, quantity: newQ, total: newQ * Number(p.sellingPrice) }
@@ -89,8 +120,8 @@ export default function POSPage() {
         }))
     }
 
-    const removeItem = (id: string) => {
-        setCart(prev => prev.filter(p => p.id !== id))
+    const removeItem = (cartId: string) => {
+        setCart(prev => prev.filter(p => p.cartId !== cartId))
     }
 
     const subTotal = cart.reduce((acc, item) => acc + item.total, 0)
@@ -111,7 +142,12 @@ export default function POSPage() {
         try {
             const res = await fetch('/api/sales', {
                 method: 'POST',
-                body: JSON.stringify({ items: cart, paymentMode: mode, flatNumber: flatNumber.trim() })
+                body: JSON.stringify({
+                    items: cart,
+                    paymentMode: mode,
+                    flatNumber: flatNumber.trim(),
+                    phoneNumber: phoneNumber.trim()
+                })
             })
 
             if (!res.ok) {
@@ -121,6 +157,8 @@ export default function POSPage() {
 
             setCart([])
             setFlatNumber('')
+            setPhoneNumber('')
+            refreshSuggestions()
             setStatusModal({
                 show: true,
                 type: 'success',
@@ -142,59 +180,93 @@ export default function POSPage() {
     const [drafts, setDrafts] = useState<{ id: string, items: CartItem[], date: string }[]>([])
     const [showDrafts, setShowDrafts] = useState(false)
     const [flatNumber, setFlatNumber] = useState('')
-    const [allFlats, setAllFlats] = useState<string[]>([])
-    const [filteredFlats, setFilteredFlats] = useState<string[]>([])
-    const [showFlatSuggestions, setShowFlatSuggestions] = useState(false)
-    const [flatSelectedIndex, setFlatSelectedIndex] = useState(-1)
+    const [phoneNumber, setPhoneNumber] = useState('')
+    const [customerInputMode, setCustomerInputMode] = useState<'FLAT' | 'NAME'>('FLAT')
+    const [allFlats, setAllFlats] = useState<{ flatNumber: string, name: string, phone: string }[]>([])
+    const [allNames, setAllNames] = useState<{ flatNumber: string, name: string, phone: string }[]>([])
+    const [filteredSuggestions, setFilteredSuggestions] = useState<{ flatNumber: string, name: string, phone: string }[]>([])
+    const [showSuggestions, setShowSuggestions] = useState(false)
+    const [suggestionSelectedIndex, setSuggestionSelectedIndex] = useState(-1)
     const [statusModal, setStatusModal] = useState<{ show: boolean, type: 'success' | 'error', message: string, title: string } | null>(null)
     const flatInputRef = useRef<HTMLInputElement>(null)
+    const customerSuggestionsRef = useRef<HTMLDivElement>(null)
 
-    useEffect(() => {
-        // Fetch all flats for autocomplete
+    const refreshSuggestions = () => {
         fetch('/api/customers/flats')
             .then(res => res.json())
             .then(data => {
-                if (Array.isArray(data)) setAllFlats(data)
+                if (data.flats) setAllFlats(data.flats)
+                if (data.names) setAllNames(data.names)
             })
-            .catch(err => console.error('Failed to fetch flats', err))
+            .catch(err => console.error('Failed to fetch suggestions', err))
+    }
+
+    useEffect(() => {
+        refreshSuggestions()
     }, [])
 
     const handleFlatChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const val = e.target.value
-        setFlatNumber(val)
-        if (val.length > 0) {
-            const matches = allFlats.filter(f => f.toLowerCase().includes(val.toLowerCase()))
-            setFilteredFlats(matches)
-            setShowFlatSuggestions(true)
-            setFlatSelectedIndex(0) // Default to first item
+        let val = e.target.value
+
+        if (customerInputMode === 'FLAT') {
+            val = val.toUpperCase().replace(/[^A-Z0-9]/g, '')
         } else {
-            setShowFlatSuggestions(false)
-            setFlatSelectedIndex(-1)
+            val = val.replace(/\b\w/g, l => l.toUpperCase())
+        }
+
+        setFlatNumber(val)
+
+        const sourceData = customerInputMode === 'FLAT' ? allFlats : allNames
+        if (val.length > 0) {
+            const matches = sourceData.filter(f => {
+                const searchField = customerInputMode === 'FLAT' ? (f.flatNumber || '') : (f.name || '')
+                return searchField.toLowerCase().includes(val.toLowerCase())
+            })
+            setFilteredSuggestions(matches)
+            setShowSuggestions(true)
+            setSuggestionSelectedIndex(0)
+        } else {
+            setShowSuggestions(false)
+            setSuggestionSelectedIndex(-1)
         }
     }
 
     const handleFlatKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (!showFlatSuggestions || filteredFlats.length === 0) return
+        if (!showSuggestions || filteredSuggestions.length === 0) return
 
         if (e.key === 'ArrowDown') {
             e.preventDefault()
-            setFlatSelectedIndex(prev => (prev < filteredFlats.length - 1 ? prev + 1 : prev))
+            setSuggestionSelectedIndex(prev => (prev < filteredSuggestions.length - 1 ? prev + 1 : prev))
         } else if (e.key === 'ArrowUp') {
             e.preventDefault()
-            setFlatSelectedIndex(prev => (prev > 0 ? prev - 1 : 0))
+            setSuggestionSelectedIndex(prev => (prev > 0 ? prev - 1 : 0))
         } else if (e.key === 'Enter') {
             e.preventDefault()
-            if (flatSelectedIndex >= 0 && flatSelectedIndex < filteredFlats.length) {
-                selectFlat(filteredFlats[flatSelectedIndex])
-                flatInputRef.current?.blur() // Optional: Move focus or keep it
+            if (suggestionSelectedIndex >= 0 && suggestionSelectedIndex < filteredSuggestions.length) {
+                selectFlat(filteredSuggestions[suggestionSelectedIndex])
+                flatInputRef.current?.blur()
             }
         }
     }
 
-    const selectFlat = (flat: string) => {
-        setFlatNumber(flat)
-        setShowFlatSuggestions(false)
+    const selectFlat = (customer: { flatNumber: string, name: string, phone: string }) => {
+        setFlatNumber(customerInputMode === 'FLAT' ? customer.flatNumber : customer.name)
+        setPhoneNumber(customer.phone || '')
+        setShowSuggestions(false)
     }
+
+    useEffect(() => {
+        if (showSuggestions && suggestionSelectedIndex >= 0 && customerSuggestionsRef.current) {
+            const container = customerSuggestionsRef.current
+            const selectedItem = container.children[suggestionSelectedIndex] as HTMLElement
+            if (selectedItem) {
+                selectedItem.scrollIntoView({
+                    block: 'nearest',
+                    behavior: 'smooth'
+                })
+            }
+        }
+    }, [suggestionSelectedIndex, showSuggestions])
 
     useEffect(() => {
         const saved = localStorage.getItem('pos_drafts')
@@ -278,53 +350,92 @@ export default function POSPage() {
                     "flex-1 md:flex-[2] flex flex-col p-0 overflow-hidden min-h-[300px] border-white/10",
                     activeTab !== 'cart' && "hidden md:flex"
                 )}>
-                    <div className="hidden md:grid p-4 bg-white/5 border-b border-white/5 grid-cols-12 gap-4 font-semibold text-slate-300">
+                    <div className="hidden md:grid p-4 bg-slate-800/20 border-b border-white/5 grid-cols-12 gap-4 text-xs font-black uppercase tracking-widest text-slate-500 items-center">
                         <div className="col-span-1">#</div>
-                        <div className="col-span-5">Item</div>
-                        <div className="col-span-2 text-center">Price</div>
-                        <div className="col-span-2 text-center">Qty</div>
-                        <div className="col-span-2 text-right">Total</div>
+                        <div className="col-span-4 pl-2">Item Description</div>
+                        <div className="col-span-2 text-center">Unit Price</div>
+                        <div className="col-span-3 text-center">Quantity</div>
+                        <div className="col-span-2 text-right pr-4">Line Total</div>
                     </div>
-                    <div className="flex-1 overflow-auto p-1.5 md:p-2 space-y-1.5 md:space-y-2 custom-scrollbar">
+                    <div className="flex-1 overflow-auto p-1.5 md:p-2 space-y-1.5 md:space-y-1 custom-scrollbar">
                         {cart.map((item, idx) => (
-                            <div key={item.cartId} className="group flex flex-col md:grid md:grid-cols-12 gap-2 md:gap-4 p-3 md:p-4 rounded-xl md:rounded-lg bg-white/5 md:bg-transparent hover:bg-white/10 transition-all border border-white/5 md:border-0">
-                                <div className="hidden md:block col-span-1 text-slate-500">{idx + 1}</div>
-                                <div className="md:col-span-5 flex justify-between items-start md:block">
-                                    <div>
-                                        <div className="flex items-baseline gap-2">
-                                            <p className="font-bold text-white md:max-w-none">{item.name}</p>
-                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-slate-400">{item.unit}</span>
+                            <div key={item.cartId} className="group flex flex-col md:grid md:grid-cols-12 gap-2 md:gap-4 p-3 md:p-3 rounded-xl md:rounded-lg bg-white/5 md:bg-transparent hover:bg-white/10 transition-all border border-white/5 md:border-0 items-center">
+                                <div className="hidden md:flex col-span-1 items-center justify-start text-xs font-mono text-slate-600 pl-2">
+                                    {(idx + 1).toString().padStart(2, '0')}
+                                </div>
+                                <div className="md:col-span-4 flex justify-between items-center md:items-start md:block">
+                                    <div className="flex-1">
+                                        <div className="flex items-center flex-wrap gap-2">
+                                            <p className="font-medium text-slate-200 text-sm md:text-[15px] leading-tight capitalize">{item.name.toLowerCase()}</p>
+                                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-white/5 uppercase tracking-tighter">{item.unit}</span>
                                         </div>
-                                        <p className="text-[10px] md:text-xs text-slate-500 font-mono mt-0.5">{item.barcode}</p>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            {item.batchNumber && (
+                                                <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/10 uppercase">
+                                                    Batch: {item.batchNumber}
+                                                </span>
+                                            )}
+                                            <p className="text-[10px] text-slate-600 font-mono tracking-wider">{item.barcode}</p>
+                                        </div>
                                     </div>
-                                    <div className="md:hidden text-right">
-                                        <p className="text-xs text-slate-400">{formatCurrency(item.sellingPrice)} / {item.unit}</p>
-                                        <p className="font-bold text-green-400">{formatCurrency(item.total)}</p>
+                                    <div className="md:hidden text-right pl-4">
+                                        <p className="text-xs font-bold text-slate-400">{formatCurrency(item.sellingPrice)}</p>
+                                        <p className="text-[15px] font-black text-emerald-400">{formatCurrency(item.total)}</p>
                                     </div>
                                 </div>
-                                <div className="hidden md:block col-span-2 text-center text-slate-400">{formatCurrency(item.sellingPrice)}</div>
-                                <div className="flex items-center justify-between md:justify-center md:col-span-2 mt-2 md:mt-0 pt-2 md:pt-0 border-t border-white/5 md:border-0">
-                                    <div className="flex items-center gap-1">
-                                        <button onClick={() => updateQuantity(item.id, -1)} className="p-2 md:p-1 bg-white/5 md:hover:bg-white/10 rounded-lg"><Minus size={14} /></button>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            step="0.001"
-                                            value={item.quantity}
-                                            onChange={(e) => {
-                                                const val = Math.max(0, parseFloat(e.target.value) || 0)
-                                                setCart(prev => prev.map(p => p.id === item.id ? { ...p, quantity: val, total: val * Number(p.sellingPrice) } : p))
-                                            }}
-                                            className="w-16 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-center text-sm focus:border-purple-500 outline-none"
-                                        />
-                                        <button onClick={() => updateQuantity(item.id, 1)} className="p-2 md:p-1 bg-white/5 md:hover:bg-white/10 rounded-lg"><Plus size={14} /></button>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <div className="hidden md:block md:col-span-2 text-right font-bold text-green-400">
-                                            {formatCurrency(item.total)}
+                                <div className="hidden md:flex col-span-2 items-center justify-center text-sm font-bold text-slate-400 font-mono">
+                                    {formatCurrency(item.sellingPrice)}
+                                </div>
+                                <div className="flex md:col-span-3 items-center justify-between md:justify-center gap-4 mt-3 md:mt-0 pt-3 md:pt-0 border-t border-white/5 md:border-0">
+                                    <div className="flex items-center gap-1.5 p-1 bg-slate-900/50 rounded-xl border border-white/5">
+                                        <button
+                                            onClick={() => updateQuantity(item.cartId, -1)}
+                                            className="p-1.5 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-all"
+                                        >
+                                            <Minus size={14} />
+                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="0.001"
+                                                value={item.quantity}
+                                                onChange={(e) => {
+                                                    const val = Math.max(0, parseFloat(e.target.value) || 0)
+                                                    setCart(prev => prev.map(p => p.cartId === item.cartId ? { ...p, quantity: val, total: val * Number(p.sellingPrice) } : p))
+                                                }}
+                                                className="w-16 bg-transparent border-0 text-center text-sm font-black text-white focus:ring-0 outline-none"
+                                            />
+                                            {item.stock > 0 && Math.abs(item.quantity - item.stock) > 0.0001 && (
+                                                <button
+                                                    onClick={() => {
+                                                        const val = Number(item.stock)
+                                                        setCart(prev => prev.map(p => p.cartId === item.cartId ? { ...p, quantity: val, total: val * Number(p.sellingPrice) } : p))
+                                                    }}
+                                                    className="px-1.5 py-1 bg-purple-500/10 hover:bg-purple-600 text-[8px] font-black text-purple-400 hover:text-white rounded-md border border-purple-500/20 transition-all uppercase"
+                                                >
+                                                    MAX
+                                                </button>
+                                            )}
                                         </div>
-                                        <button onClick={() => removeItem(item.id)} className="text-red-400 p-2 md:p-1 bg-red-500/10 md:bg-transparent md:hover:bg-white/10 rounded-lg transition-colors"><Trash size={16} /></button>
+                                        <button
+                                            onClick={() => updateQuantity(item.cartId, 1)}
+                                            className="p-1.5 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-all"
+                                        >
+                                            <Plus size={14} />
+                                        </button>
                                     </div>
+                                    <button
+                                        onClick={() => removeItem(item.cartId)}
+                                        className="text-slate-600 hover:text-red-400 p-2 hover:bg-red-500/10 rounded-lg transition-all"
+                                    >
+                                        <Trash size={16} />
+                                    </button>
+                                </div>
+                                <div className="hidden md:flex col-span-2 items-center justify-end pr-4">
+                                    <span className="text-[17px] font-black text-emerald-400 tracking-tight">
+                                        {formatCurrency(item.total)}
+                                    </span>
                                 </div>
                             </div>
                         ))}
@@ -350,11 +461,10 @@ export default function POSPage() {
                 )}>
                     <Card className="p-3 md:p-4 relative z-20 border-white/10 bg-slate-900/40 backdrop-blur-md">
                         <div className="relative">
-                            <Search className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" size={20} />
                             <Input
                                 ref={searchInputRef}
                                 wrapperClassName="mb-0"
-                                className="pr-10 h-10 md:h-12 bg-white/5 border-white/10 focus:bg-white/10 text-white placeholder:text-slate-500 rounded-xl"
+                                className="pr-16 h-10 md:h-12 bg-white/5 border-white/10 focus:bg-white/10 text-white placeholder:text-slate-500 rounded-xl"
                                 placeholder="Scan / Search Product..."
                                 value={query}
                                 onChange={(e) => {
@@ -366,132 +476,260 @@ export default function POSPage() {
                                     }
                                 }}
                                 onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        if (searchResults.length === 1) {
-                                            addToCart(searchResults[0])
-                                            setQuery('')
-                                            setSearchResults([])
-                                        } else if (searchResults.length > 1) {
-                                            // Focus list?
-                                        } else {
+                                    if (e.key === 'ArrowDown') {
+                                        e.preventDefault()
+                                        setSelectedIndex(prev => (prev + 1) % (searchResults.length || 1))
+                                    } else if (e.key === 'ArrowUp') {
+                                        e.preventDefault()
+                                        setSelectedIndex(prev => (prev - 1 + (searchResults.length || 1)) % (searchResults.length || 1))
+                                    } else if (e.key === 'Enter') {
+                                        e.preventDefault()
+                                        if (searchResults.length > 0) {
+                                            const selected = searchResults[selectedIndex]
+                                            if (selected && selected.stock > 0) {
+                                                addToCart(selected)
+                                                setQuery('')
+                                                setSearchResults([])
+                                                setSelectedIndex(0)
+                                            }
+                                        } else if (query.length > 1) {
                                             searchProduct(query)
                                         }
+                                    } else if (e.key === 'Escape') {
+                                        setSearchResults([])
+                                        setSelectedIndex(0)
                                     }
                                 }}
                             />
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                                {isSearching && <RefreshCcw className="w-4 h-4 text-purple-500 animate-spin" />}
+                                <Search className="text-slate-400 pointer-events-none" size={20} />
+                            </div>
                         </div>
 
                         {/* Search Results Dropdown */}
                         {(query.length > 1) && (
-                            <div className="absolute top-full left-0 right-0 mt-2 bg-[#1e293b] border border-white/10 rounded-xl shadow-2xl z-50 max-h-72 overflow-auto divide-y divide-white/5">
-                                {searchResults.length > 0 ? (
-                                    searchResults.map((product) => (
-                                        <button
-                                            key={product.id}
-                                            className={`w-full text-left p-4 flex justify-between items-center transition-all ${product.stock > 0 ? 'hover:bg-white/5' : 'opacity-50 cursor-not-allowed'}`}
-                                            disabled={product.stock <= 0}
-                                            onClick={() => {
-                                                if (product.stock > 0) {
-                                                    addToCart(product)
-                                                    setQuery('')
-                                                    setSearchResults([])
-                                                    if (!window.matchMedia("(max-width: 768px)").matches) {
-                                                        searchInputRef.current?.focus()
+                            <div className="absolute top-full left-0 right-0 mt-2 bg-[#1e293b] border border-white/10 rounded-xl shadow-2xl z-50 max-h-72 overflow-auto divide-y divide-white/5 custom-scrollbar">
+                                <div ref={resultsContainerRef}>
+                                    {searchResults.length > 0 ? (
+                                        searchResults.map((product, idx) => (
+                                            <button
+                                                key={product.id + (product.batchId || '')}
+                                                className={clsx(
+                                                    "w-full text-left p-4 flex justify-between items-center transition-all outline-none border-l-4",
+                                                    product.stock > 0 ? "border-transparent" : "opacity-40 cursor-not-allowed border-red-500/20",
+                                                    idx === selectedIndex && product.stock > 0 ? "bg-purple-500/10 border-purple-500 ring-1 ring-inset ring-purple-500/10" : "hover:bg-white/[0.02]"
+                                                )}
+                                                onMouseEnter={() => product.stock > 0 && setSelectedIndex(idx)}
+                                                disabled={product.stock <= 0}
+                                                onClick={() => {
+                                                    if (product.stock > 0) {
+                                                        addToCart(product)
+                                                        setQuery('')
+                                                        setSearchResults([])
+                                                        if (!window.matchMedia("(max-width: 768px)").matches) {
+                                                            searchInputRef.current?.focus()
+                                                        }
                                                     }
-                                                }
-                                            }}
-                                        >
-                                            <div className="flex-1 pr-4">
-                                                <div className="flex items-center flex-wrap gap-2">
-                                                    <p className="font-bold text-white leading-tight">{product.name}</p>
-                                                    <span className="text-[10px] font-bold text-slate-400 bg-white/10 px-1.5 py-0.5 rounded">{product.unit}</span>
+                                                }}
+                                            >
+                                                <div className="flex-1 pr-6">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <p className="font-medium text-white text-[15px] tracking-tight capitalize">
+                                                            {product.name.toLowerCase()}
+                                                        </p>
+                                                        <span className="text-[9px] font-black text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded border border-white/5 uppercase">
+                                                            {product.unit}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        {product.batchNumber && (
+                                                            <span className="text-[9px] font-bold text-purple-400 flex items-center gap-1">
+                                                                <div className="w-1.5 h-1.5 rounded-full bg-purple-500/40" />
+                                                                {product.batchNumber}
+                                                            </span>
+                                                        )}
+                                                        <p className="text-[10px] text-slate-600 font-mono italic">{product.barcode}</p>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Stock</span>
+                                                            <span className={clsx(
+                                                                "text-[10px] font-black",
+                                                                product.stock <= 5 ? "text-amber-500" : "text-emerald-500"
+                                                            )}>
+                                                                {Number(product.stock).toFixed(3)}
+                                                            </span>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    <p className="text-[10px] text-slate-500 font-mono">{product.barcode}</p>
-                                                    <span className="w-1 h-1 bg-slate-700 rounded-full" />
-                                                    <p className="text-[10px] text-slate-400 font-bold">Stock: {product.stock}</p>
+                                                <div className="text-right">
+                                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-0.5">Price</p>
+                                                    <p className="text-[18px] font-black text-emerald-400 leading-tight">
+                                                        {formatCurrency(product.sellingPrice)}
+                                                    </p>
                                                 </div>
-                                                <div className="mt-1 flex gap-1">
-                                                    {product.stock <= 0 && <span className="text-[9px] font-bold text-red-500 uppercase px-1 border border-red-500/30 rounded">Out of Stock</span>}
-                                                    {product.stock > 0 && product.expiredStock === product.stock && <span className="text-[9px] font-bold text-red-500 uppercase px-1 border border-red-500/30 rounded">Expired</span>}
-                                                    {product.stock > 0 && product.expiredStock! > 0 && product.expiredStock !== product.stock && <span className="text-[9px] font-bold text-yellow-500 uppercase px-1 border border-yellow-500/30 rounded">Expiring</span>}
-                                                </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="font-bold text-lg text-green-400">{formatCurrency(product.sellingPrice)}</p>
-                                                <div className="inline-flex p-1.5 bg-purple-500/20 text-purple-400 rounded-lg mt-1 group-hover:bg-purple-500 group-hover:text-white transition-all">
-                                                    <Plus size={16} />
-                                                </div>
-                                            </div>
-                                        </button>
-                                    ))
-                                ) : (
-                                    <div className="p-8 text-center text-slate-500 text-sm italic">
-                                        No products match "{query}"
-                                    </div>
-                                )}
+                                            </button>
+                                        ))
+                                    ) : (
+                                        <div className="p-8 text-center text-slate-500">
+                                            No products found matching "{query}"
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </Card>
 
-                    <Card className="flex-1 flex flex-col justify-end p-4 md:p-6 border-white/10 bg-slate-900/60 backdrop-blur-xl">
-                        <div className="space-y-2 md:space-y-3 mb-4 md:mb-6 text-slate-300">
-                            <div className="flex justify-between text-xs md:text-sm">
-                                <span className="text-slate-500">Subtotal</span>
-                                <span>{formatCurrency(subTotal)}</span>
+                    <Card className="flex-1 flex flex-col justify-end p-5 md:p-8 border-white/10 bg-[#0f172a]/80 backdrop-blur-3xl shadow-2xl relative overflow-hidden">
+                        {/* Decorative background glow */}
+                        <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-purple-600/10 blur-[80px] rounded-full pointer-events-none" />
+
+                        <div className="space-y-4 mb-8">
+                            <div className="flex justify-between items-center text-slate-500 font-medium tracking-tight">
+                                <span className="text-xs uppercase tracking-[0.2em]">Subtotal</span>
+                                <span className="text-sm font-mono">{formatCurrency(subTotal)}</span>
                             </div>
-                            <div className="flex justify-between items-end pt-3 md:pt-4 border-t border-white/10">
-                                <span className="text-lg md:text-xl font-medium">Total Bill</span>
-                                <span className="text-3xl md:text-5xl font-black text-white tracking-tighter shadow-sm">{formatCurrency(total)}</span>
+                            <div className="pt-5 border-t border-white/5 flex justify-between items-end">
+                                <div>
+                                    <p className="text-[10px] font-black text-purple-400 uppercase tracking-[0.3em] mb-1">Final Amount</p>
+                                    <h2 className="text-lg md:text-2xl font-black text-slate-300 tracking-tight">Total Bill</h2>
+                                </div>
+                                <div className="text-right">
+                                    <span className="text-4xl md:text-6xl font-black text-white tracking-tighter drop-shadow-[0_0_20px_rgba(255,255,255,0.15)]">
+                                        {formatCurrency(total)}
+                                    </span>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 md:gap-3 mb-2 md:mb-3 relative">
-                            <div className="col-span-2 relative group">
-                                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                                    <span className="text-xs text-slate-500 group-focus-within:text-purple-400 transition-colors uppercase font-bold tracking-widest">Flat:</span>
+                        <div className="space-y-4">
+                            {/* Input Mode Toggle */}
+                            <div className="flex p-1 bg-white/[0.03] border border-white/5 rounded-xl">
+                                <button
+                                    onClick={() => { setCustomerInputMode('FLAT'); setFlatNumber(''); }}
+                                    className={clsx(
+                                        "flex-1 py-2 text-[10px] font-black tracking-widest uppercase rounded-lg transition-all",
+                                        customerInputMode === 'FLAT' ? "bg-purple-600/20 text-purple-400 border border-purple-500/20 shadow-lg shadow-purple-900/10" : "text-slate-500 hover:text-slate-300"
+                                    )}
+                                >
+                                    Flat / Room
+                                </button>
+                                <button
+                                    onClick={() => { setCustomerInputMode('NAME'); setFlatNumber(''); }}
+                                    className={clsx(
+                                        "flex-1 py-2 text-[10px] font-black tracking-widest uppercase rounded-lg transition-all",
+                                        customerInputMode === 'NAME' ? "bg-purple-600/20 text-purple-400 border border-purple-500/20 shadow-lg shadow-purple-900/10" : "text-slate-500 hover:text-slate-300"
+                                    )}
+                                >
+                                    Customer Name
+                                </button>
+                            </div>
+
+                            {/* Customer Input */}
+                            <div className="relative group rounded-2xl border border-white/10 bg-white/[0.02] focus-within:bg-white/[0.05] focus-within:border-purple-500/50 transition-all">
+                                <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                                    <span className="text-[10px] font-black text-slate-500 group-focus-within:text-purple-400 uppercase tracking-widest transition-colors">
+                                        {customerInputMode}:
+                                    </span>
                                 </div>
                                 <input
                                     ref={flatInputRef}
-                                    placeholder="Number..."
+                                    placeholder={customerInputMode === 'FLAT' ? "E.G. A101" : "E.G. Gireesh Ks"}
                                     value={flatNumber}
                                     onChange={handleFlatChange}
                                     onKeyDown={handleFlatKeyDown}
-                                    onFocus={() => flatNumber && setShowFlatSuggestions(true)}
-                                    onBlur={() => setTimeout(() => setShowFlatSuggestions(false), 200)}
-                                    className="w-full pl-16 pr-4 py-3 bg-white/5 border border-white/10 focus:border-purple-500/50 focus:bg-white/10 text-white placeholder:text-slate-600 rounded-xl outline-none transition-all text-sm font-bold"
+                                    onFocus={() => flatNumber && setShowSuggestions(true)}
+                                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                                    className="w-full pl-24 pr-4 py-4 bg-transparent text-white placeholder:text-slate-700 outline-none text-sm font-bold tracking-wide"
                                     autoComplete="off"
                                 />
-                                {showFlatSuggestions && filteredFlats.length > 0 && (
-                                    <div className="absolute bottom-full left-0 right-0 mb-2 bg-[#1e293b] border border-white/10 rounded-xl shadow-2xl z-50 max-h-48 overflow-auto py-1 animate-in slide-in-from-bottom-2">
-                                        {filteredFlats.map((flat, i) => (
+                                {showSuggestions && filteredSuggestions.length > 0 && (
+                                    <div
+                                        ref={customerSuggestionsRef}
+                                        className="absolute bottom-full left-0 right-0 mb-2 bg-[#1e293b] border border-white/10 rounded-xl shadow-2xl z-50 max-h-48 overflow-auto py-1 animate-in slide-in-from-bottom-2"
+                                    >
+                                        {filteredSuggestions.map((item, i) => (
                                             <button
                                                 key={i}
-                                                className={`w-full text-left px-4 py-2.5 text-white text-sm font-medium border-l-4 transition-all ${i === flatSelectedIndex ? 'bg-purple-600/20 border-purple-500 text-purple-200' : 'border-transparent hover:bg-white/5'}`}
-                                                onClick={() => selectFlat(flat)}
-                                                onMouseEnter={() => setFlatSelectedIndex(i)}
+                                                className={`w-full text-left px-4 py-3 text-white text-sm font-bold border-l-4 transition-all ${i === suggestionSelectedIndex ? 'bg-purple-600/20 border-purple-500 text-purple-200' : 'border-transparent hover:bg-white/5'}`}
+                                                onClick={() => selectFlat(item)}
+                                                onMouseEnter={() => setSuggestionSelectedIndex(i)}
                                             >
-                                                {flat}
+                                                <div className="flex justify-between items-center">
+                                                    <span>{customerInputMode === 'FLAT' ? item.flatNumber : item.name}</span>
+                                                    {item.phone && <span className="text-[10px] text-slate-500 font-mono">{item.phone}</span>}
+                                                </div>
                                             </button>
                                         ))}
                                     </div>
                                 )}
                             </div>
-                            <Button variant="secondary" onClick={saveDraft} disabled={cart.length === 0} className="col-span-2 justify-center py-2.5 md:py-3 border-dashed border-white/10 text-slate-400 hover:text-white hover:border-purple-500/50 hover:bg-purple-500/5 rounded-xl text-xs md:text-sm font-bold uppercase tracking-wider">
-                                <RefreshCcw size={16} className="mr-2" /> Hold Bill
-                            </Button>
-                        </div>
 
-                        <div className="grid grid-cols-2 gap-2 md:gap-3">
-                            <Button variant="secondary" className="justify-center py-4 md:py-6 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl shadow-lg shadow-emerald-900/20 font-black text-sm md:text-base transition-all active:scale-95" onClick={() => handleCheckout('CASH')}>
-                                <Banknote className="mr-2" size={20} /> CASH
+                            {/* Mobile Number Entry */}
+                            <div className="relative group rounded-2xl border border-white/10 bg-white/[0.02] focus-within:bg-white/[0.05] focus-within:border-emerald-500/50 transition-all">
+                                <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                                    <span className="text-[10px] font-black text-slate-500 group-focus-within:text-emerald-400 uppercase tracking-widest transition-colors">
+                                        Mobile:
+                                    </span>
+                                </div>
+                                <input
+                                    placeholder="Optional Mobile Number"
+                                    value={phoneNumber}
+                                    onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                    className="w-full pl-24 pr-4 py-4 bg-transparent text-white placeholder:text-slate-700 outline-none text-sm font-bold tracking-wide"
+                                    autoComplete="off"
+                                />
+                            </div>
+
+                            {/* Drafts / Hold Button */}
+                            <Button
+                                variant="secondary"
+                                className="w-full bg-slate-800/40 border border-white/10 hover:bg-slate-700/60 text-slate-300 hover:text-white font-bold text-[10px] tracking-[0.2em] uppercase py-3 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-inner"
+                                onClick={() => {
+                                    if (cart.length > 0) {
+                                        const newDraft = { id: Math.random().toString(), items: [...cart], date: new Date().toISOString() }
+                                        setDrafts([newDraft, ...drafts])
+                                        setCart([])
+                                    }
+                                }}
+                                disabled={cart.length === 0}
+                            >
+                                <RefreshCcw size={14} className={clsx(loading && "animate-spin")} />
+                                HOLD / DRAFT BILL
                             </Button>
-                            <Button variant="secondary" className="justify-center py-4 md:py-6 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl shadow-lg shadow-blue-900/20 font-black text-sm md:text-base transition-all active:scale-95" onClick={() => handleCheckout('CREDIT')}>
-                                <CreditCard className="mr-2" size={20} /> CREDIT
-                            </Button>
-                            <Button variant="secondary" className="justify-center py-4 md:py-6 col-span-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-2xl shadow-lg shadow-purple-900/30 font-black text-sm md:text-base transition-all active:scale-95" onClick={() => handleCheckout('UPI')}>
-                                <QrCode className="mr-2" size={20} /> UPI / SCAN
-                            </Button>
+
+                            {/* Main Action Buttons */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <Button
+                                    className="relative overflow-hidden h-14 bg-teal-600/90 hover:bg-teal-500 text-white font-black rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 group"
+                                    onClick={() => handleCheckout('CASH')}
+                                    disabled={loading || cart.length === 0}
+                                >
+                                    {loading ? <RefreshCcw className="w-5 h-5 animate-spin" /> : <Banknote size={20} className="group-hover:scale-110 transition-transform" />}
+                                    <span className="text-[10px] tracking-widest uppercase">CASH</span>
+                                </Button>
+
+                                <Button
+                                    className="relative overflow-hidden h-14 bg-blue-600/90 hover:bg-blue-500 text-white font-black rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 group"
+                                    onClick={() => handleCheckout('CREDIT')}
+                                    disabled={loading || cart.length === 0}
+                                >
+                                    {loading ? <RefreshCcw className="w-5 h-5 animate-spin" /> : <CreditCard size={20} className="group-hover:scale-110 transition-transform" />}
+                                    <span className="text-[10px] tracking-widest uppercase">CREDIT</span>
+                                </Button>
+
+                                <Button
+                                    className="col-span-2 relative overflow-hidden h-14 bg-gradient-to-r from-indigo-700 to-purple-800 hover:from-indigo-600 hover:to-purple-700 text-white font-black rounded-2xl shadow-lg transition-all flex items-center justify-center gap-3 group"
+                                    onClick={() => handleCheckout('UPI')}
+                                    disabled={loading || cart.length === 0}
+                                >
+                                    {loading ? <RefreshCcw className="w-6 h-6 animate-spin" /> : (
+                                        <>
+                                            <QrCode size={22} className="group-hover:rotate-12 transition-transform" />
+                                            <span className="text-[11px] tracking-[0.2em] uppercase">COMPLETE UPI / SCAN</span>
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
                         </div>
                     </Card>
                 </div>
