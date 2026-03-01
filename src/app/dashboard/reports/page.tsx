@@ -412,7 +412,7 @@ export default function ReportsPage() {
 
                     {/* Main Chart Section */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-                        <Card className="lg:col-span-2 p-4 md:p-6">
+                        <Card className="lg:col-span-2 p-4 md:p-5 lg:p-6">
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                                 <h3 className="font-bold text-lg text-white">Revenue Overview</h3>
                                 <Button variant="secondary" className="text-xs h-8 w-full sm:w-auto" onClick={handleDownloadCSV}>Download CSV</Button>
@@ -464,7 +464,7 @@ export default function ReportsPage() {
 
                     {/* Payment Distribution */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-                        <Card className="col-span-1 p-6">
+                        <Card className="col-span-1 p-4 md:p-5 lg:p-6">
                             <h3 className="font-bold text-lg text-white mb-6">Payment Method Breakdown</h3>
                             <div className="space-y-4">
                                 {businessLoading ? (
@@ -493,7 +493,7 @@ export default function ReportsPage() {
                                 ))}
                             </div>
                         </Card>
-                        <Card className="col-span-2 p-6 flex flex-col justify-center items-center text-slate-500 bg-white/5 border-dashed border-2 border-slate-700">
+                        <Card className="col-span-2 p-4 md:p-6 flex flex-col justify-center items-center text-slate-500 bg-white/5 border-dashed border-2 border-slate-700">
                             <div className="p-4 rounded-full bg-slate-800/50 mb-4">
                                 <TrendingUp size={32} />
                             </div>
@@ -513,7 +513,7 @@ export default function ReportsPage() {
                                 <select
                                     value={flatNumber}
                                     onChange={(e) => setFlatNumber(e.target.value)}
-                                    className="w-full h-12 px-4 rounded-xl bg-white/[0.03] border border-white/10 text-white text-sm font-bold focus:outline-none focus:border-purple-500 transition-all appearance-none cursor-pointer hover:bg-white/[0.05]"
+                                    className="w-full h-10 md:h-12 px-4 rounded-xl bg-white/[0.03] border border-white/10 text-white text-sm font-bold focus:outline-none focus:border-purple-500 transition-all appearance-none cursor-pointer hover:bg-white/[0.05]"
                                 >
                                     <option value="" className="bg-slate-900">Select Flat / Room</option>
                                     {availableFlats.map(flat => (
@@ -525,7 +525,7 @@ export default function ReportsPage() {
                             <div className="w-48">
                                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2 pl-1">Report Type</label>
                                 <select
-                                    className="w-full h-12 px-4 rounded-xl bg-white/[0.03] border border-white/10 text-white text-sm font-bold focus:outline-none focus:border-purple-500 transition-all appearance-none cursor-pointer hover:bg-white/[0.05]"
+                                    className="w-full h-10 md:h-12 px-4 rounded-xl bg-white/[0.03] border border-white/10 text-white text-sm font-bold focus:outline-none focus:border-purple-500 transition-all appearance-none cursor-pointer hover:bg-white/[0.05]"
                                     value={filterType}
                                     onChange={(e) => setFilterType(e.target.value)}
                                 >
@@ -540,7 +540,7 @@ export default function ReportsPage() {
                                     type={filterType === 'date' ? 'date' : filterType === 'month' ? 'month' : 'number'}
                                     value={filterValue}
                                     onChange={(e) => setFilterValue(e.target.value)}
-                                    className="bg-white/[0.03] border-white/10 w-full h-12 rounded-xl text-white font-bold h-12"
+                                    className="bg-white/[0.03] border-white/10 w-full rounded-xl text-white font-bold h-10 md:h-12"
                                     wrapperClassName="mb-0"
                                     placeholder={filterType === 'year' ? 'YYYY' : ''}
                                 />
@@ -548,7 +548,7 @@ export default function ReportsPage() {
 
                             <div className="flex gap-2">
                                 <Button
-                                    className="bg-purple-600 hover:bg-purple-500 text-white h-12 px-8 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg shadow-purple-900/20 transition-all active:scale-95"
+                                    className="bg-purple-600 hover:bg-purple-500 text-white h-10 md:h-12 px-8 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg shadow-purple-900/20 transition-all active:scale-95"
                                     onClick={() => fetchCreditReport()}
                                     disabled={loading}
                                 >
@@ -560,7 +560,7 @@ export default function ReportsPage() {
                                 </Button>
                                 <Button
                                     variant="secondary"
-                                    className="h-12 px-5 flex items-center justify-center rounded-xl bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 hover:text-white transition-all shadow-lg"
+                                    className="h-10 md:h-12 px-5 flex items-center justify-center rounded-xl bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 hover:text-white transition-all shadow-lg"
                                     onClick={() => {
                                         const link = document.createElement('a');
                                         link.href = `/api/reports/credit-summary-csv?onlyDue=${showOnlyDue}`;
@@ -582,7 +582,7 @@ export default function ReportsPage() {
 
                     {viewMode === 'summary' && (
                         <Card className="overflow-hidden border-white/5 bg-slate-900/40 shadow-2xl transition-all">
-                            <div className="p-6 bg-gradient-to-r from-purple-900/10 via-slate-900/50 to-transparent border-b border-white/5 flex flex-wrap justify-between items-center gap-6">
+                            <div className="p-4 md:p-6 bg-gradient-to-r from-purple-900/10 via-slate-900/50 to-transparent border-b border-white/5 flex flex-wrap justify-between items-center gap-6">
                                 <div className="flex flex-col gap-1">
                                     <h3 className="text-sm font-black text-white tracking-[0.3em] uppercase opacity-80 pl-1">All-Flats Credit Hub</h3>
                                     <p className="text-xs text-slate-500 font-bold tracking-wide italic">Activity overview across all residential accounts</p>
@@ -712,7 +712,7 @@ export default function ReportsPage() {
                                         <DollarSign size={80} />
                                     </div>
                                 </Card>
-                                <Card className="p-6 bg-white/5 border border-white/10 flex flex-col justify-center gap-6">
+                                <Card className="p-4 md:p-6 bg-white/5 border border-white/10 flex flex-col justify-center gap-6">
                                     <div>
                                         <p className="text-slate-500 font-bold text-xs uppercase tracking-widest mb-1">Lifetime Credit</p>
                                         <p className="text-2xl font-bold text-white">{formatCurrency(reportData.totalCredit || 0)}</p>
@@ -722,7 +722,7 @@ export default function ReportsPage() {
                                         <p className="text-2xl font-bold text-emerald-400">{formatCurrency(reportData.totalPaid || 0)}</p>
                                     </div>
                                 </Card>
-                                <Card className="p-6 bg-white/5 border border-white/10 flex flex-col justify-center">
+                                <Card className="p-4 md:p-6 bg-white/5 border border-white/10 flex flex-col justify-center">
                                     <p className="text-slate-500 mb-2 font-bold text-xs uppercase tracking-widest">Period Sales</p>
                                     <h2 className="text-3xl font-bold text-white">{formatCurrency(reportData.total || 0)}</h2>
                                     <p className="text-xs text-slate-500 mt-2 italic">Current selection total</p>

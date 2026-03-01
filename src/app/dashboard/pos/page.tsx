@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { Trash, Plus, Minus, Search, CreditCard, Banknote, QrCode, RefreshCcw, CheckCircle2, AlertCircle, X } from 'lucide-react'
+import { Trash, Plus, Minus, Search, CreditCard, Banknote, QrCode, RefreshCcw, CheckCircle2, AlertCircle, X, ShoppingCart } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
 import { clsx } from 'clsx'
@@ -173,6 +173,7 @@ export default function POSPage() {
             setCart([])
             setFlatNumber('')
             setPhoneNumber('')
+            setShowCheckoutModal(false)
             refreshSuggestions()
             setStatusModal({
                 show: true,
@@ -194,6 +195,7 @@ export default function POSPage() {
 
     const [drafts, setDrafts] = useState<{ id: string, items: CartItem[], date: string }[]>([])
     const [showDrafts, setShowDrafts] = useState(false)
+    const [showCheckoutModal, setShowCheckoutModal] = useState(false)
     const [flatNumber, setFlatNumber] = useState('')
     const [phoneNumber, setPhoneNumber] = useState('')
     const [customerInputMode, setCustomerInputMode] = useState<'FLAT' | 'NAME'>('FLAT')
@@ -322,7 +324,7 @@ export default function POSPage() {
     const [activeTab, setActiveTab] = useState<'cart' | 'actions'>('cart')
 
     return (
-        <div className="flex flex-col h-full gap-2 md:gap-4">
+        <div className="flex flex-col h-full flex-1 gap-2 md:gap-4 overflow-hidden">
             <div className="flex justify-between items-center mb-1 md:mb-2 px-1">
                 <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">Billing Terminal</h1>
                 <div className="flex items-center gap-2 md:gap-4">
@@ -479,7 +481,7 @@ export default function POSPage() {
                             <Input
                                 ref={searchInputRef}
                                 wrapperClassName="mb-0"
-                                className="pr-16 h-10 md:h-12 bg-white/5 border-white/10 focus:bg-white/10 text-white placeholder:text-slate-500 rounded-xl"
+                                className="pr-16 h-10 lg:h-12 bg-white/5 border-white/10 focus:bg-white/10 text-white placeholder:text-slate-500 rounded-xl"
                                 placeholder="Scan / Search Product..."
                                 value={query}
                                 onChange={(e) => {
@@ -594,26 +596,59 @@ export default function POSPage() {
                         )}
                     </Card>
 
-                    <Card className="flex-1 flex flex-col justify-end p-5 md:p-8 border-white/10 bg-[#0f172a]/80 backdrop-blur-3xl shadow-2xl relative overflow-hidden">
+                    <Card className="flex-1 flex flex-col p-4 md:p-5 lg:p-6 border-white/10 bg-[#0f172a]/80 backdrop-blur-3xl shadow-2xl relative overflow-hidden">
                         {/* Decorative background glow */}
                         <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-purple-600/10 blur-[80px] rounded-full pointer-events-none" />
 
-                        <div className="space-y-4 mb-8">
-                            <div className="flex justify-between items-center text-slate-500 font-medium tracking-tight">
+                        {/* PINNED TOTAL */}
+                        <div className="mt-auto pt-4 shrink-0">
+                            <div className="flex justify-between items-center text-slate-500 font-medium tracking-tight mb-2">
                                 <span className="text-xs uppercase tracking-[0.2em]">Subtotal</span>
                                 <span className="text-sm font-mono">{formatCurrency(subTotal)}</span>
                             </div>
-                            <div className="pt-5 border-t border-white/5 flex justify-between items-end">
+                            <div className="flex justify-between items-end mb-6">
                                 <div>
                                     <p className="text-[10px] font-black text-purple-400 uppercase tracking-[0.3em] mb-1">Final Amount</p>
                                     <h2 className="text-lg md:text-2xl font-black text-slate-300 tracking-tight">Total Bill</h2>
                                 </div>
                                 <div className="text-right">
-                                    <span className="text-4xl md:text-6xl font-black text-white tracking-tighter drop-shadow-[0_0_20px_rgba(255,255,255,0.15)]">
+                                    <span className="text-3xl md:text-4xl lg:text-5xl font-black text-white tracking-tighter drop-shadow-[0_0_20px_rgba(255,255,255,0.15)] flex-shrink-0">
                                         {formatCurrency(total)}
                                     </span>
                                 </div>
                             </div>
+
+                            <Button
+                                className="w-full h-14 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-sm tracking-widest uppercase rounded-2xl shadow-lg shadow-purple-900/40 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                                onClick={() => setShowCheckoutModal(true)}
+                                disabled={cart.length === 0}
+                            >
+                                Proceed to Checkout
+                            </Button>
+                        </div>
+                    </Card>
+                </div>
+            </div>
+            {/* Checkout Modal */}
+            {showCheckoutModal && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <Card className="w-full max-w-lg flex flex-col p-4 md:p-6 border border-white/10 shadow-2xl bg-[#0f172a] overflow-visible">
+                        <div className="flex justify-between items-start mb-6 border-b border-white/10 pb-4">
+                            <div>
+                                <h3 className="font-bold text-white text-xl">Checkout</h3>
+                                <p className="text-slate-400 text-xs mt-1 mb-3">
+                                    Enter customer details to finalize transaction
+                                </p>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-sm font-black text-slate-500 uppercase tracking-widest">Amount Due:</span>
+                                    <span className="text-2xl font-black text-emerald-400 tracking-tighter drop-shadow-[0_0_15px_rgba(52,211,153,0.2)]">
+                                        {formatCurrency(total)}
+                                    </span>
+                                </div>
+                            </div>
+                            <button onClick={() => setShowCheckoutModal(false)} className="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-white/5 transition-colors">
+                                <X size={20} />
+                            </button>
                         </div>
 
                         <div className="space-y-4">
@@ -654,19 +689,19 @@ export default function POSPage() {
                                     onKeyDown={handleFlatKeyDown}
                                     onFocus={() => flatNumber && setShowSuggestions(true)}
                                     onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                                    className="w-full pl-24 pr-4 py-4 bg-transparent text-white placeholder:text-slate-700 outline-none text-sm font-bold tracking-wide"
+                                    className="w-full pl-24 pr-4 py-2.5 md:py-4 bg-transparent text-white placeholder:text-slate-700 outline-none text-sm font-bold tracking-wide"
                                     autoComplete="off"
                                 />
                                 {showSuggestions && filteredSuggestions.length > 0 && (
                                     <div
                                         ref={customerSuggestionsRef}
-                                        className="absolute bottom-full left-0 right-0 mb-2 bg-[#1e293b] border border-white/10 rounded-xl shadow-2xl z-50 max-h-48 overflow-auto py-1 animate-in slide-in-from-bottom-2"
+                                        className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-white/10 rounded-xl shadow-2xl z-[70] max-h-48 overflow-y-auto py-1 animate-in slide-in-from-top-2 flex flex-col"
                                     >
                                         {filteredSuggestions.map((item, i) => (
                                             <button
                                                 key={i}
                                                 className={`w-full text-left px-4 py-3 text-white text-sm font-bold border-l-4 transition-all ${i === suggestionSelectedIndex ? 'bg-purple-600/20 border-purple-500 text-purple-200' : 'border-transparent hover:bg-white/5'}`}
-                                                onClick={() => selectFlat(item)}
+                                                onClick={() => { selectFlat(item); setShowSuggestions(false); }}
                                                 onMouseEnter={() => setSuggestionSelectedIndex(i)}
                                             >
                                                 <div className="flex justify-between items-center">
@@ -690,7 +725,7 @@ export default function POSPage() {
                                     placeholder="Optional Mobile Number"
                                     value={phoneNumber}
                                     onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                                    className="w-full pl-24 pr-4 py-4 bg-transparent text-white placeholder:text-slate-700 outline-none text-sm font-bold tracking-wide"
+                                    className="w-full pl-24 pr-4 py-2.5 md:py-4 bg-transparent text-white placeholder:text-slate-700 outline-none text-sm font-bold tracking-wide"
                                     autoComplete="off"
                                 />
                             </div>
@@ -698,11 +733,12 @@ export default function POSPage() {
                             {/* Drafts / Hold Button */}
                             <Button
                                 variant="secondary"
-                                className="w-full bg-slate-800/40 border border-white/10 hover:bg-slate-700/60 text-slate-300 hover:text-white font-bold text-[10px] tracking-[0.2em] uppercase py-3 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-inner"
+                                className="w-full bg-slate-800/40 border border-white/10 hover:bg-slate-700/60 text-slate-300 hover:text-white font-bold text-[10px] tracking-[0.2em] uppercase py-2.5 md:py-3 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-inner"
                                 onClick={() => {
                                     if (cart.length > 0) {
                                         saveDraft()
                                         toast.success('Bill placed on hold')
+                                        setShowCheckoutModal(false)
                                     }
                                 }}
                                 disabled={cart.length === 0}
@@ -712,9 +748,9 @@ export default function POSPage() {
                             </Button>
 
                             {/* Main Action Buttons */}
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-2 gap-3 pt-4 border-t border-white/5">
                                 <Button
-                                    className="relative overflow-hidden h-14 bg-teal-600/90 hover:bg-teal-500 text-white font-black rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 group"
+                                    className="relative overflow-hidden h-12 md:h-14 bg-teal-600/90 hover:bg-teal-500 text-white font-black rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 group"
                                     onClick={() => handleCheckout('CASH')}
                                     disabled={loading || cart.length === 0}
                                 >
@@ -723,7 +759,7 @@ export default function POSPage() {
                                 </Button>
 
                                 <Button
-                                    className="relative overflow-hidden h-14 bg-blue-600/90 hover:bg-blue-500 text-white font-black rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 group"
+                                    className="relative overflow-hidden h-12 md:h-14 bg-blue-600/90 hover:bg-blue-500 text-white font-black rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 group"
                                     onClick={() => handleCheckout('CREDIT')}
                                     disabled={loading || cart.length === 0}
                                 >
@@ -732,7 +768,7 @@ export default function POSPage() {
                                 </Button>
 
                                 <Button
-                                    className="col-span-2 relative overflow-hidden h-14 bg-gradient-to-r from-indigo-700 to-purple-800 hover:from-indigo-600 hover:to-purple-700 text-white font-black rounded-2xl shadow-lg transition-all flex items-center justify-center gap-3 group"
+                                    className="col-span-2 relative overflow-hidden h-12 md:h-14 bg-gradient-to-r from-indigo-700 to-purple-800 hover:from-indigo-600 hover:to-purple-700 text-white font-black rounded-2xl shadow-lg transition-all flex items-center justify-center gap-3 group"
                                     onClick={() => handleCheckout('UPI')}
                                     disabled={loading || cart.length === 0}
                                 >
@@ -747,112 +783,120 @@ export default function POSPage() {
                         </div>
                     </Card>
                 </div>
-            </div>
+            )}
 
             {/* Drafts Modal */}
-            {showDrafts && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <Card className="w-full max-w-lg max-h-[80vh] flex flex-col p-0">
-                        <div className="p-4 border-b border-white/10 flex justify-between items-center">
-                            <h3 className="font-bold text-white">Held Bills / Drafts</h3>
-                            <button onClick={() => setShowDrafts(false)} className="text-slate-400 hover:text-white">✕</button>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                            {drafts.length === 0 ? (
-                                <p className="text-center text-slate-500 py-8">No held bills found.</p>
-                            ) : (
-                                drafts.map((draft) => (
-                                    <div key={draft.id} onClick={() => restoreDraft(draft.id)} className="flex justify-between items-center p-4 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer border border-transparent hover:border-purple-500/50 transition-all">
-                                        <div>
-                                            <p className="font-bold text-white mb-1">Bill #{draft.id.slice(-4)}</p>
-                                            <p className="text-xs text-slate-400">{draft.date} • {draft.items.length} Items</p>
+            {
+                showDrafts && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                        <Card className="w-full max-w-lg max-h-[80vh] flex flex-col p-0">
+                            <div className="p-4 border-b border-white/10 flex justify-between items-center">
+                                <h3 className="font-bold text-white">Held Bills / Drafts</h3>
+                                <button onClick={() => setShowDrafts(false)} className="text-slate-400 hover:text-white">✕</button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                                {drafts.length === 0 ? (
+                                    <p className="text-center text-slate-500 py-8">No held bills found.</p>
+                                ) : (
+                                    drafts.map((draft) => (
+                                        <div key={draft.id} onClick={() => restoreDraft(draft.id)} className="flex justify-between items-center p-4 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer border border-transparent hover:border-purple-500/50 transition-all">
+                                            <div>
+                                                <p className="font-bold text-white mb-1">Bill #{draft.id.slice(-4)}</p>
+                                                <p className="text-xs text-slate-400">{draft.date} • {draft.items.length} Items</p>
+                                            </div>
+                                            <div className="flex items-center gap-4">
+                                                <span className="font-mono text-green-400 font-bold">
+                                                    {formatCurrency(draft.items.reduce((acc, i) => acc + i.total, 0))}
+                                                </span>
+                                                <button onClick={(e) => deleteDraft(draft.id, e)} className="p-2 hover:bg-red-500/20 rounded text-slate-500 hover:text-red-400">
+                                                    <Trash size={16} />
+                                                </button>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-4">
-                                            <span className="font-mono text-green-400 font-bold">
-                                                {formatCurrency(draft.items.reduce((acc, i) => acc + i.total, 0))}
-                                            </span>
-                                            <button onClick={(e) => deleteDraft(draft.id, e)} className="p-2 hover:bg-red-500/20 rounded text-slate-500 hover:text-red-400">
-                                                <Trash size={16} />
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </Card>
-                </div>
-            )}
+                                    ))
+                                )}
+                            </div>
+                        </Card>
+                    </div>
+                )
+            }
             {/* Custom Status Modal */}
-            {statusModal?.show && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
-                    <Card className={`w-full max-w-sm border-2 overflow-hidden shadow-2xl ${statusModal?.type === 'success' ? 'border-emerald-500/50 shadow-emerald-500/20' : 'border-red-500/50 shadow-red-500/20'}`}>
-                        <div className="p-6 text-center space-y-4">
-                            <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center ${statusModal?.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-500'}`}>
-                                {statusModal?.type === 'success' ? <CheckCircle2 size={32} /> : <AlertCircle size={32} />}
+            {
+                statusModal?.show && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
+                        <Card className={`w-full max-w-sm border-2 overflow-hidden shadow-2xl ${statusModal?.type === 'success' ? 'border-emerald-500/50 shadow-emerald-500/20' : 'border-red-500/50 shadow-red-500/20'}`}>
+                            <div className="p-6 text-center space-y-4">
+                                <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center ${statusModal?.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-500'}`}>
+                                    {statusModal?.type === 'success' ? <CheckCircle2 size={32} /> : <AlertCircle size={32} />}
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-bold text-white mb-1">{statusModal?.title}</h3>
+                                    <p className="text-slate-400 text-sm">{statusModal?.message}</p>
+                                </div>
+                                <Button
+                                    className={`w-full mt-4 ${statusModal?.type === 'success' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-600 hover:bg-red-700'}`}
+                                    onClick={() => setStatusModal(null)}
+                                >
+                                    Continue
+                                </Button>
                             </div>
-                            <div>
-                                <h3 className="text-xl font-bold text-white mb-1">{statusModal?.title}</h3>
-                                <p className="text-slate-400 text-sm">{statusModal?.message}</p>
-                            </div>
-                            <Button
-                                className={`w-full mt-4 ${statusModal?.type === 'success' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-600 hover:bg-red-700'}`}
-                                onClick={() => setStatusModal(null)}
-                            >
-                                Continue
-                            </Button>
-                        </div>
-                        {/* Progress Bar for Auto-dismiss (optional) but for POS acknowledgement is better */}
-                        <div className={`h-1 w-full ${statusModal?.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'} opacity-30`} />
-                    </Card>
-                </div>
-            )}
+                            {/* Progress Bar for Auto-dismiss (optional) but for POS acknowledgement is better */}
+                            <div className={`h-1 w-full ${statusModal?.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'} opacity-30`} />
+                        </Card>
+                    </div>
+                )
+            }
             {/* Unsaved Navigation Modal */}
-            {pendingNavigation && (
-                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
-                    <Card className="w-full max-w-md border-2 border-yellow-500/50 shadow-2xl shadow-yellow-500/20">
-                        <div className="p-6 text-center space-y-4">
-                            <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center bg-yellow-500/10 text-yellow-500">
-                                <AlertCircle size={32} />
+            {
+                pendingNavigation && (
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
+                        <Card className="w-full max-w-md border-2 border-yellow-500/50 shadow-2xl shadow-yellow-500/20">
+                            <div className="p-6 text-center space-y-4">
+                                <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center bg-yellow-500/10 text-yellow-500">
+                                    <AlertCircle size={32} />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-bold text-white mb-1">Unsaved Bill</h3>
+                                    <p className="text-slate-400 text-sm">You have items in your cart. What would you like to do before leaving?</p>
+                                </div>
+                                <div className="flex flex-col gap-3 pt-4">
+                                    <Button
+                                        className="w-full bg-purple-600 hover:bg-purple-700 font-bold"
+                                        onClick={() => {
+                                            // Hold Bill
+                                            saveDraft()
+                                            toast.success('Bill placed on hold')
+                                            router.push(pendingNavigation as string)
+                                        }}
+                                    >
+                                        Hold Bill & Continue
+                                    </Button>
+                                    <Button
+                                        variant="secondary"
+                                        className="w-full bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20 font-bold"
+                                        onClick={() => {
+                                            // Exit without saving
+                                            setCart([])
+                                            if (pendingNavigation) {
+                                                router.push(pendingNavigation)
+                                            }
+                                        }}
+                                    >
+                                        Exit Without Saving
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        className="w-full text-slate-400 hover:text-white hover:bg-white/5"
+                                        onClick={() => setPendingNavigation(null)}
+                                    >
+                                        Cancel & Stay on Page
+                                    </Button>
+                                </div>
                             </div>
-                            <div>
-                                <h3 className="text-xl font-bold text-white mb-1">Unsaved Bill</h3>
-                                <p className="text-slate-400 text-sm">You have items in your cart. What would you like to do before leaving?</p>
-                            </div>
-                            <div className="flex flex-col gap-3 pt-4">
-                                <Button
-                                    className="w-full bg-purple-600 hover:bg-purple-700 font-bold"
-                                    onClick={() => {
-                                        // Hold Bill
-                                        saveDraft()
-                                        toast.success('Bill placed on hold')
-                                        router.push(pendingNavigation as string)
-                                    }}
-                                >
-                                    Hold Bill & Continue
-                                </Button>
-                                <Button
-                                    variant="secondary"
-                                    className="w-full bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20 font-bold"
-                                    onClick={() => {
-                                        // Exit without saving
-                                        setCart([])
-                                        router.push(pendingNavigation)
-                                    }}
-                                >
-                                    Exit Without Saving
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    className="w-full text-slate-400 hover:text-white hover:bg-white/5"
-                                    onClick={() => setPendingNavigation(null)}
-                                >
-                                    Cancel & Stay on Page
-                                </Button>
-                            </div>
-                        </div>
-                    </Card>
-                </div>
-            )}
-        </div>
+                        </Card>
+                    </div>
+                )
+            }
+        </div >
     )
 }

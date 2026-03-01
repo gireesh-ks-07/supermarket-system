@@ -14,7 +14,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Sidebar isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
             <div className="flex-1 flex flex-col min-w-0">
                 <Header onMenuClick={() => setIsMobileMenuOpen(true)} />
-                <main className="flex-1 overflow-auto p-4 custom-scrollbar">
+                <main className="flex-1 flex flex-col overflow-auto p-2 md:p-4 custom-scrollbar">
                     <ErrorBoundary>
                         {children}
                     </ErrorBoundary>
