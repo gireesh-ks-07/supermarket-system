@@ -27,6 +27,7 @@ const productImportSchema = z.object({
     taxPercent: z.coerce.number().default(0),
     minStockLevel: z.coerce.number().default(10),
     pricingType: z.enum(['MRP', 'DYNAMIC']).default('MRP'),
+    type: z.string().optional()
 })
 
 export async function POST(request: Request) {

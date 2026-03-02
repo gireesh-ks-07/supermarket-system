@@ -39,6 +39,7 @@ const createProductSchema = z.object({
     taxPercent: z.coerce.number().default(0),
     minStockLevel: z.coerce.number().default(10),
     pricingType: z.enum(['MRP', 'DYNAMIC']).default('MRP'),
+    type: z.string().optional()
 })
 
 export async function POST(request: Request) {
@@ -67,7 +68,8 @@ export async function POST(request: Request) {
                 sellingPrice: data.sellingPrice,
                 taxPercent: data.taxPercent,
                 minStockLevel: data.minStockLevel,
-                pricingType: data.pricingType
+                pricingType: data.pricingType,
+                type: data.type || 'GROCERY'
             }
         })
         return NextResponse.json({ success: true, product })

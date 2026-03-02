@@ -96,8 +96,17 @@ export async function PUT(request: Request) {
 
         if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 })
 
+        // Ensure ownership
+        const existing = await prisma.supplier.findUnique({
+            where: { id }
+        })
+
+        if (!existing || existing.supermarketId !== supermarketId) {
+            return NextResponse.json({ error: 'Supplier not found' }, { status: 404 })
+        }
+
         const supplier = await prisma.supplier.update({
-            where: { id, supermarketId }, // Ensure ownership
+            where: { id },
             data: data
         })
 
@@ -117,12 +126,26 @@ export async function DELETE(request: Request) {
     if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 })
 
     try {
+        // Ensure ownership
+        const existing = await prisma.supplier.findUnique({
+            where: { id }
+        })
+
+        if (!existing || existing.supermarketId !== supermarketId) {
+            return NextResponse.json({ error: 'Supplier not found' }, { status: 404 })
+        }
+
         await prisma.supplier.delete({
-            where: { id, supermarketId }
+            where: { id }
         })
         return NextResponse.json({ success: true })
-    } catch (e) {
-        // Likely foreign key constraint if they have purchases
-        return NextResponse.json({ error: 'Cannot delete supplier with existing records.' }, { status: 400 })
+    } catch (e: any) {
+        // P2003 is the Prisma error code for foreign key constraint violation
+        if (e.code === 'P2003') {
+            return NextResponse.json({
+                error: 'Cannot delete supplier. They have associated purchase records. Please deactivate them instead.'
+            }, { status: 400 })
+        }
+        return NextResponse.json({ error: 'Failed to delete supplier', details: e.message }, { status: 500 })
     }
 }

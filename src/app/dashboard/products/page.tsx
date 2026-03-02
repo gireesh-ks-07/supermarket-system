@@ -24,7 +24,8 @@ const productSchema = z.object({
     sellingPrice: z.string().min(1, 'Price required'),
     taxPercent: z.string().default('0'),
     minStockLevel: z.string().default('10'),
-    pricingType: z.enum(['MRP', 'DYNAMIC']).default('MRP')
+    pricingType: z.enum(['MRP', 'DYNAMIC']).default('MRP'),
+    type: z.string().default('GROCERY')
 })
 
 type Product = {
@@ -39,6 +40,7 @@ type Product = {
     taxPercent: number
     minStockLevel: number
     pricingType?: string
+    type?: string
 }
 
 // Fetcher
@@ -59,7 +61,8 @@ export default function ProductsPage() {
     const [formData, setFormData] = useState({
         name: '', barcode: '', category: '', brand: '',
         unitValue: '1', unitType: 'piece',
-        costPrice: '', sellingPrice: '', taxPercent: '0', minStockLevel: '10', pricingType: 'MRP'
+        costPrice: '', sellingPrice: '', taxPercent: '0', minStockLevel: '10', pricingType: 'MRP',
+        type: 'GROCERY'
     })
 
     const openEdit = (product: Product) => {
@@ -76,7 +79,8 @@ export default function ProductsPage() {
             sellingPrice: product.sellingPrice.toString(),
             taxPercent: product.taxPercent.toString(),
             minStockLevel: product.minStockLevel.toString(),
-            pricingType: product.pricingType || 'MRP'
+            pricingType: product.pricingType || 'MRP',
+            type: product.type || 'GROCERY'
         })
         setIsAddModalOpen(true)
     }
@@ -86,7 +90,8 @@ export default function ProductsPage() {
         setFormData({
             name: '', barcode: '', category: '', brand: '',
             unitValue: '1', unitType: 'piece',
-            costPrice: '', sellingPrice: '', taxPercent: '0', minStockLevel: '10', pricingType: 'MRP'
+            costPrice: '', sellingPrice: '', taxPercent: '0', minStockLevel: '10', pricingType: 'MRP',
+            type: 'GROCERY'
         })
     }
 
@@ -549,6 +554,21 @@ export default function ProductsPage() {
                                             <option value="DYNAMIC">DYNAMIC (Auto-update Stocks)</option>
                                         </select>
                                     </div>
+                                    <div>
+                                        <label className="label">Product Type</label>
+                                        <select
+                                            className="input w-full appearance-none h-11"
+                                            value={formData.type}
+                                            onChange={e => setFormData({ ...formData, type: e.target.value })}
+                                        >
+                                            <option value="GROCERY">Grocery Item</option>
+                                            <option value="VEGETABLES">Vegetables</option>
+                                            <option value="FRUITS">Fruits</option>
+                                            <option value="DAIRY">Dairy & Eggs</option>
+                                            <option value="PERISHABLE">Perishable Goods</option>
+                                            <option value="OTHERS">Others</option>
+                                        </select>
+                                    </div>
                                 </div>
 
                                 <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
@@ -560,10 +580,11 @@ export default function ProductsPage() {
                                     </Button>
                                 </div>
                             </form>
-                        </div>
-                    </Card>
-                </div>
-            )}
+                        </div >
+                    </Card >
+                </div >
+            )
+            }
             {/* Delete Confirmation Modal */}
             <ConfirmationModal
                 isOpen={!!deleteId}
@@ -573,6 +594,6 @@ export default function ProductsPage() {
                 message="Are you sure you want to delete this product? This action cannot be undone."
                 confirmText="Delete"
             />
-        </div>
+        </div >
     )
 }

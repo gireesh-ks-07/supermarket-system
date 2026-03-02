@@ -24,7 +24,7 @@ export async function PUT(
 
     const { id } = await params
     const body = await request.json()
-    const { name, barcode, category, brand, unit, costPrice, sellingPrice, taxPercent, minStockLevel, pricingType } = body
+    const { name, barcode, category, brand, unit, costPrice, sellingPrice, taxPercent, minStockLevel, pricingType, type } = body
 
     try {
         const product = await prisma.product.update({
@@ -39,7 +39,8 @@ export async function PUT(
                 sellingPrice: Number(sellingPrice),
                 taxPercent: Number(taxPercent),
                 minStockLevel: Number(minStockLevel),
-                pricingType: pricingType || 'MRP'
+                pricingType: pricingType || 'MRP',
+                type: type || 'GROCERY'
             } as any
         })
 
