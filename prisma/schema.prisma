@@ -59,6 +59,7 @@ model Product {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   pricingType   String?        @default("MRP")
+  type          String?        @default("GROCERY")
   expiredStocks ExpiredStock[] @relation("ProductToExpired")
   supermarket   Supermarket    @relation(fields: [supermarketId], references: [id])
   batches       ProductBatch[]
@@ -81,6 +82,7 @@ model ProductBatch {
   sellingPrice Decimal?
   product      Product   @relation(fields: [productId], references: [id])
   purchase     Purchase? @relation(fields: [purchaseId], references: [id])
+  saleItems    SaleItem[]
 }
 
 model Supplier {
@@ -160,12 +162,15 @@ model SaleItem {
   id        String  @id @default(uuid())
   saleId    String
   productId String
+  batchId   String?
   quantity  Float
   unitPrice Decimal
+  costPrice Decimal?
   taxAmount Decimal
   total     Decimal
   product   Product @relation(fields: [productId], references: [id])
   sale      Sale    @relation(fields: [saleId], references: [id])
+  batch     ProductBatch? @relation(fields: [batchId], references: [id])
 }
 
 model Customer {
