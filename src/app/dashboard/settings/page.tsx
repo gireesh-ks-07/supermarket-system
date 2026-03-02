@@ -92,7 +92,7 @@ export default function SettingsPage() {
                     <form onSubmit={handleSave} className="p-6 space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <Input
-                                label="Supermarket Name"
+                                label="Supermarket Name *"
                                 value={formData.name}
                                 onChange={e => setFormData({ ...formData, name: e.target.value })}
                                 placeholder="My Supermarket"

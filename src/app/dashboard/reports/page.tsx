@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/Input'
 import {
     BarChart3, Calendar, TrendingUp, DollarSign,
     CreditCard, ShoppingBag, ArrowUpRight, ArrowDownRight,
-    Search, FileText, PieChart, Banknote, QrCode, ArrowLeft, AlertCircle, Download
+    Search, FileText, PieChart, Banknote, QrCode, ArrowLeft, AlertCircle, Download, AlertTriangle, RefreshCcw, TrendingDown
 } from 'lucide-react'
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal'
 import { formatCurrency } from '@/lib/utils'
@@ -21,8 +21,20 @@ function cn(...inputs: ClassValue[]) {
 }
 
 export default function ReportsPage() {
-    const [activeTab, setActiveTab] = useState<'business' | 'credit' | 'profit' | 'product'>('business')
+    const [activeTab, setActiveTab] = useState<'business' | 'credit' | 'profit' | 'product' | 'expired'>('business')
     const [paymentModeChange, setPaymentModeChange] = useState<{ saleId: string, mode: string } | null>(null)
+
+    // Expired Stock Data
+    const { data: expiredData, isLoading: expiredLoading } = useSWR(
+        activeTab === 'expired' ? '/api/stock/expired' : null,
+        (url: string) => fetch(url).then(res => res.json())
+    )
+
+    React.useEffect(() => {
+        const params = new URLSearchParams(window.location.search)
+        const tab = params.get('tab')
+        if (tab === 'expired') setActiveTab('expired')
+    }, [])
 
     // ... (rest of simple states) ...
     // Shared Date State (used by Business and Profit)
@@ -194,6 +206,13 @@ export default function ReportsPage() {
                     >
                         <ShoppingBag className="md:mr-2" size={16} /> <span className="hidden md:inline">Product History</span>
                     </Button>
+                    <Button
+                        variant={activeTab === 'expired' ? undefined : 'secondary'}
+                        onClick={() => setActiveTab('expired')}
+                        className="flex-1 md:flex-none text-xs md:text-sm"
+                    >
+                        <AlertTriangle className="md:mr-2" size={16} /> <span className="hidden md:inline">Expired Report</span>
+                    </Button>
                 </div>
             </div>
 
@@ -215,20 +234,23 @@ export default function ReportsPage() {
 
                     <div className="w-px h-6 bg-white/10 mx-1 hidden sm:block"></div>
 
-                    <div className={`relative flex items-center gap-2 px-4 py-2 rounded-md transition-all duration-300 border-2 ${period === 'custom'
-                        ? 'bg-purple-500/15 border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.2)]'
-                        : 'border-white/5 hover:border-white/10 hover:bg-white/5'
-                        }`}>
-                        <Calendar size={16} className={period === 'custom' ? "text-purple-400 scroll-pulse" : "text-slate-500"} />
+                    <div className={`relative flex items-center gap-2 px-4 py-2 rounded-md transition-all duration-300 border-2 bg-purple-500/15 border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.2)]`}>
+                        <Calendar size={16} className="text-purple-400" />
                         <input
-                            type="date"
-                            value={selectedDate}
+                            type={period === 'monthly' ? 'month' : period === 'yearly' ? 'number' : 'date'}
+                            value={period === 'monthly' ? selectedDate.substring(0, 7) : period === 'yearly' ? selectedDate.substring(0, 4) : selectedDate}
+                            placeholder={period === 'yearly' ? 'YYYY' : ''}
                             onChange={(e) => {
-                                setSelectedDate(e.target.value)
-                                setPeriod('custom')
+                                let val = e.target.value;
+                                if (!val) return;
+                                if (period === 'monthly') {
+                                    val = `${val}-01`;
+                                } else if (period === 'yearly') {
+                                    val = `${val}-01-01`;
+                                }
+                                setSelectedDate(val)
                             }}
-                            className={`bg-transparent border-none text-sm focus:ring-0 outline-none [color-scheme:dark] cursor-pointer font-semibold tracking-tight ${period === 'custom' ? 'text-white' : 'text-slate-400'
-                                }`}
+                            className="bg-transparent border-none w-auto text-sm focus:ring-0 outline-none [color-scheme:dark] cursor-pointer font-semibold tracking-tight text-white"
                         />
                     </div>
                 </Card>
@@ -451,7 +473,7 @@ export default function ReportsPage() {
                                     <div key={i} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
                                         <div className="flex-1 pr-4">
                                             <p className="font-medium text-white text-sm truncate">{item.name}</p>
-                                            <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">{item.quantity} {item.unit} sold</p>
+                                            <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">{Number(item.quantity).toFixed(3)} x {item.unit} sold</p>
                                         </div>
                                         <div className="text-right">
                                             <p className="font-bold text-green-400 text-sm">{formatCurrency(item.value)}</p>
@@ -872,8 +894,8 @@ export default function ReportsPage() {
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-5 text-center">
-                                                    <span className="font-black text-white text-lg">{Number(item.qty.toFixed(3))}</span>
-                                                    <span className="text-slate-500 text-[10px] ml-1 uppercase font-bold tracking-wider">{item.unit}</span>
+                                                    <span className="font-black text-white text-lg">{Number(item.qty).toFixed(3)}</span>
+                                                    <span className="text-slate-500 text-[10px] ml-1 uppercase font-bold tracking-wider">x {item.unit}</span>
                                                 </td>
                                                 <td className="px-6 py-5 text-right text-emerald-400 font-black tabular-nums text-lg">
                                                     {formatCurrency(item.revenue)}
@@ -896,7 +918,7 @@ export default function ReportsPage() {
                                         <tr>
                                             <td className="px-6 py-5 text-right font-black text-slate-400 uppercase tracking-widest text-[10px]">Total</td>
                                             <td className="px-6 py-5 text-center font-black text-white">
-                                                {Number(allProductSalesData.reduce((acc: number, item: any) => acc + item.qty, 0).toFixed(3))} Items
+                                                {Number(allProductSalesData.reduce((acc: number, item: any) => acc + item.qty, 0)).toFixed(3)} Items
                                             </td>
                                             <td className="px-6 py-5 text-right font-black text-emerald-400 tabular-nums">
                                                 {formatCurrency(allProductSalesData.reduce((acc: number, item: any) => acc + item.revenue, 0))}
@@ -923,7 +945,7 @@ export default function ReportsPage() {
 
                             <form onSubmit={handlePayment} className="space-y-4">
                                 <div>
-                                    <label className="block text-sm text-slate-400 mb-1">Amount</label>
+                                    <label className="block text-sm text-slate-400 mb-1">Amount *</label>
                                     <Input
                                         type="number"
                                         step="0.01"
@@ -956,7 +978,7 @@ export default function ReportsPage() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm text-slate-400 mb-1">Payment Method</label>
+                                    <label className="block text-sm text-slate-400 mb-1">Payment Method *</label>
                                     <div className="grid grid-cols-2 gap-2">
                                         {['CASH', 'UPI'].map(mode => (
                                             <button
@@ -989,6 +1011,79 @@ export default function ReportsPage() {
                 </div>
             )}
 
+            {/* EXPIRED STOCK TAB CONTENT */}
+            {activeTab === 'expired' && (
+                <div className="space-y-6 fade-in">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Card className="p-4 bg-red-500/5 border-red-500/10">
+                            <p className="text-sm font-bold text-red-500 mb-1">Total Loss Recorded</p>
+                            <h3 className="text-2xl font-bold text-white">
+                                {expiredData ? formatCurrency(expiredData.filter((i: any) => i.type === 'LOSS').reduce((acc: number, i: any) => acc + (Number(i.quantity) * Number(i.product.costPrice || 0)), 0)) : '...'}
+                            </h3>
+                        </Card>
+                        <Card className="p-4 bg-blue-500/5 border-blue-500/10">
+                            <p className="text-sm font-bold text-blue-500 mb-1">Processed Replacements</p>
+                            <h3 className="text-2xl font-bold text-white">
+                                {expiredData ? Number(expiredData.filter((i: any) => i.type === 'REPLACED').reduce((acc: number, i: any) => acc + Number(i.quantity), 0)).toFixed(3) : '...'} Items
+                            </h3>
+                        </Card>
+                    </div>
+
+                    <Card className="p-0 overflow-hidden border-white/10 bg-slate-900/40">
+                        <div className="p-4 border-b border-white/5 bg-white/5">
+                            <h3 className="font-bold text-white">Expired Stock Log</h3>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-white/5 text-slate-400 font-bold border-b border-white/5">
+                                    <tr>
+                                        <th className="p-4">Date</th>
+                                        <th className="p-4">Product</th>
+                                        <th className="p-4 text-center">Qty</th>
+                                        <th className="p-4">Type</th>
+                                        <th className="p-4">Note</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                    {expiredLoading ? (
+                                        <tr><td colSpan={5} className="p-10 text-center text-slate-500">Loading analysis...</td></tr>
+                                    ) : expiredData?.map((entry: any) => (
+                                        <tr key={entry.id} className="hover:bg-white/5 transition-all">
+                                            <td className="p-4 text-slate-400 whitespace-nowrap">
+                                                {new Date(entry.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                            </td>
+                                            <td className="p-4">
+                                                <p className="font-bold text-white">{entry.product.name}</p>
+                                                <p className="text-xs text-slate-500 font-mono">#{entry.batchId.slice(-8)}</p>
+                                            </td>
+                                            <td className="p-4 text-center font-bold text-white">
+                                                {Number(entry.quantity).toFixed(3)} <span className="text-[10px] text-slate-500 ml-1 uppercase">{entry.product.unit}</span>
+                                            </td>
+                                            <td className="p-4">
+                                                {entry.type === 'REPLACED' ? (
+                                                    <span className="flex items-center gap-1.5 text-blue-400 font-bold text-xs bg-blue-500/10 px-2 py-1 rounded-full w-fit">
+                                                        <RefreshCcw size={12} /> REPLACED
+                                                    </span>
+                                                ) : (
+                                                    <span className="flex items-center gap-1.5 text-red-500 font-bold text-xs bg-red-500/10 px-2 py-1 rounded-full w-fit">
+                                                        <TrendingDown size={12} /> LOSS
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="p-4 text-slate-400 text-xs italic max-w-xs truncate">
+                                                {entry.note || '-'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {!expiredLoading && expiredData?.length === 0 && (
+                                        <tr><td colSpan={5} className="p-10 text-center text-slate-500">No expired stock records found.</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Card>
+                </div>
+            )}
             <ConfirmationModal
                 isOpen={!!paymentModeChange}
                 onClose={() => setPaymentModeChange(null)}

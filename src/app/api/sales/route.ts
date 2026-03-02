@@ -97,7 +97,7 @@ export async function POST(request: Request) {
                 let remainingQty = item.quantity
 
                 // Get batches: if specific batchId provided, use it. Otherwise FIFO.
-                const batches = await tx.productBatch.findMany({
+                let batches = await tx.productBatch.findMany({
                     where: {
                         productId: item.id,
                         id: item.batchId || undefined, // Filter by batchId if present
@@ -106,6 +106,16 @@ export async function POST(request: Request) {
                     include: { product: true },
                     orderBy: { expiryDate: 'asc' }
                 })
+
+                // If grouped (no specific batchId), we MUST only deduct from stocks that have the matching price
+                if (!item.batchId) {
+                    batches = batches.filter(b => {
+                        const sPrice = (b as any).sellingPrice !== null && (b as any).sellingPrice !== undefined
+                            ? Number((b as any).sellingPrice)
+                            : Number(b.product.sellingPrice)
+                        return Math.abs(sPrice - Number(item.sellingPrice)) < 0.001
+                    })
+                }
 
                 let totalAvailable = batches.reduce((acc: number, b: any) => acc + b.quantity, 0)
                 if (totalAvailable < remainingQty) {
@@ -142,7 +152,7 @@ export async function POST(request: Request) {
                         deduct * sellingPrice
                     )
 
-                    const newBatchQty = (batch as any).quantity - deduct
+                    const newBatchQty = Math.round(((batch as any).quantity - deduct) * 1000) / 1000
                     await tx.productBatch.update({
                         where: { id: batch.id },
                         data: { quantity: Math.max(0, newBatchQty) }

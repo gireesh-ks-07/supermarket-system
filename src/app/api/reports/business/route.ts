@@ -30,21 +30,24 @@ export async function GET(request: Request) {
     // --------------------------------------------------------------------------------
     // Logic: Calculate Start/End dates based on Period
     // --------------------------------------------------------------------------------
+    const localDateStr = dateParam ? (dateParam.includes('T') ? dateParam : `${dateParam}T00:00:00`) : null
+    const baseDate = localDateStr ? new Date(localDateStr) : new Date()
+    if (isNaN(baseDate.getTime())) baseDate.setTime(Date.now())
+
     if (period === 'custom' && dateParam) {
-        startDate = new Date(dateParam)
-        if (isNaN(startDate.getTime())) startDate = new Date()
+        startDate = new Date(baseDate)
         endDate = new Date(startDate)
         endDate.setDate(endDate.getDate() + 1)
     } else if (period === 'daily') {
         // Today (00:00 to 23:59)
-        startDate = new Date()
+        startDate = new Date(baseDate)
         startDate.setHours(0, 0, 0, 0)
 
         endDate = new Date(startDate)
         endDate.setDate(endDate.getDate() + 1)
     } else if (period === 'weekly') {
         // Current Week (Monday to Sunday)
-        startDate = new Date()
+        startDate = new Date(baseDate)
         const day = startDate.getDay() // 0 is Sun
         const diff = startDate.getDate() - day + (day === 0 ? -6 : 1) // adjust when day is sunday
         startDate.setDate(diff)
@@ -54,7 +57,7 @@ export async function GET(request: Request) {
         endDate.setDate(endDate.getDate() + 7)
     } else if (period === 'monthly') {
         // Current Month (1st to Last)
-        startDate = new Date()
+        startDate = new Date(baseDate)
         startDate.setDate(1)
         startDate.setHours(0, 0, 0, 0)
 
@@ -62,7 +65,7 @@ export async function GET(request: Request) {
         endDate.setMonth(endDate.getMonth() + 1)
     } else if (period === 'yearly') {
         // Current Year (Jan 1 to Dec 31)
-        startDate = new Date()
+        startDate = new Date(baseDate)
         startDate.setMonth(0, 1) // Jan 1
         startDate.setHours(0, 0, 0, 0)
 

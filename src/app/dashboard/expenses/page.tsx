@@ -225,7 +225,7 @@ export default function ExpensesPage() {
 
                         <form onSubmit={handleAddExpense} className="p-6 space-y-4">
                             <div>
-                                <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Title</label>
+                                <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Title *</label>
                                 <input
                                     type="text"
                                     required
@@ -238,7 +238,7 @@ export default function ExpensesPage() {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Amount</label>
+                                    <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Amount *</label>
                                     <input
                                         type="number"
                                         required
@@ -250,7 +250,7 @@ export default function ExpensesPage() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Category</label>
+                                    <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Category *</label>
                                     <select
                                         value={['Rent', 'Electricity', 'Water', 'Salaries', 'Maintenance', 'Internet', 'Purchase', 'Transportation', 'Miscellaneous'].includes(newExpense.category) ? newExpense.category : 'Other'}
                                         onChange={e => {
@@ -266,6 +266,7 @@ export default function ExpensesPage() {
                                     {!['Rent', 'Electricity', 'Water', 'Salaries', 'Maintenance', 'Internet', 'Purchase', 'Transportation', 'Miscellaneous'].includes(newExpense.category) && (
                                         <input
                                             type="text"
+                                            required
                                             placeholder="Enter Custom Category"
                                             value={newExpense.category}
                                             onChange={e => setNewExpense({ ...newExpense, category: e.target.value })}
@@ -277,7 +278,7 @@ export default function ExpensesPage() {
                             </div>
 
                             <div>
-                                <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Date</label>
+                                <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Date *</label>
                                 <input
                                     type="date"
                                     required

@@ -26,6 +26,7 @@ const productImportSchema = z.object({
     sellingPrice: z.coerce.number().min(0),
     taxPercent: z.coerce.number().default(0),
     minStockLevel: z.coerce.number().default(10),
+    pricingType: z.enum(['MRP', 'DYNAMIC']).default('MRP'),
 })
 
 export async function POST(request: Request) {

@@ -155,14 +155,14 @@ export default function UsersPage() {
                         </div>
                         <form onSubmit={handleSave} className="space-y-4">
                             <Input
-                                label="Full Name"
+                                label="Full Name *"
                                 required
                                 value={formData.name}
                                 onChange={e => setFormData({ ...formData, name: e.target.value })}
                             />
                             <div className="grid grid-cols-2 gap-4">
                                 <Input
-                                    label="Username"
+                                    label="Username *"
                                     required={!editingId}
                                     disabled={!!editingId} // Usually username is immutable or needs special handling
                                     value={formData.username}
@@ -183,7 +183,7 @@ export default function UsersPage() {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <Input
-                                    label={editingId ? "New Password (Optional)" : "Password"}
+                                    label={editingId ? "New Password (Optional)" : "Password *"}
                                     type="password"
                                     required={!editingId}
                                     value={formData.password}

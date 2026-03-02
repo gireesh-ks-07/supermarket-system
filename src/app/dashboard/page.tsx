@@ -115,7 +115,7 @@ export default function DashboardPage() {
                                         </div>
                                         <div>
                                             <p className="font-medium text-sm">{item.name}</p>
-                                            <p className="text-xs text-slate-500">{item.quantity} {item.unit} sold</p>
+                                            <p className="text-xs text-slate-500">{item.quantity} x {item.unit} sold</p>
                                         </div>
                                     </div>
                                     <span className="font-mono font-bold text-green-400">{formatCurrency(item.value)}</span>

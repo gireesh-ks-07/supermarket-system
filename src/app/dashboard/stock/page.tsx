@@ -5,7 +5,7 @@ import useSWR, { mutate } from 'swr'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Truck, Plus, Search, Archive, AlertTriangle, User, X, Trash2, Edit2, Pause, Play, Download, Upload } from 'lucide-react'
+import { Truck, Plus, Search, Archive, AlertTriangle, User, X, Trash2, Edit2, Pause, Play, Download, Upload, RefreshCcw, TrendingDown } from 'lucide-react'
 import Papa from 'papaparse'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -106,6 +106,18 @@ function InventoryView() {
     const [submitting, setSubmitting] = useState(false)
     const [editBatchId, setEditBatchId] = useState<string | null>(null)
 
+    // Expired Handling State
+    const [expiredBatch, setExpiredBatch] = useState<StockBatch | null>(null)
+    const [expiredAction, setExpiredAction] = useState<'REPLACE' | 'LOSS' | null>(null)
+    const [expiredQuantity, setExpiredQuantity] = useState(0)
+    const [replacementBatch, setReplacementBatch] = useState({
+        batchNumber: '',
+        expiryDate: '',
+        costPrice: '',
+        sellingPrice: ''
+    })
+    const [expiredNote, setExpiredNote] = useState('')
+
     const handleAddStock = async (e: React.FormEvent) => {
         e.preventDefault()
         setSubmitting(true)
@@ -132,6 +144,48 @@ function InventoryView() {
             }
         } catch (e) {
             toast.error('Network error')
+        } finally {
+            toast.dismiss(loadingToast)
+            setSubmitting(false)
+        }
+    }
+
+    const handleExpiredAction = async () => {
+        if (!expiredBatch || !expiredAction) return
+        setSubmitting(true)
+        const loadingToast = toast.loading(expiredAction === 'REPLACE' ? 'Processing Replacement...' : 'Recording Loss...')
+        try {
+            const res = await fetch('/api/stock/expired', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    productId: expiredBatch.productId,
+                    batchId: expiredBatch.id,
+                    quantity: Number(expiredQuantity),
+                    type: expiredAction === 'REPLACE' ? 'REPLACED' : 'LOSS',
+                    note: expiredNote,
+                    newBatch: expiredAction === 'REPLACE' ? {
+                        batchNumber: replacementBatch.batchNumber,
+                        expiryDate: replacementBatch.expiryDate,
+                        costPrice: replacementBatch.costPrice ? Number(replacementBatch.costPrice) : undefined,
+                        sellingPrice: replacementBatch.sellingPrice ? Number(replacementBatch.sellingPrice) : undefined
+                    } : undefined
+                })
+            })
+
+            if (res.ok) {
+                toast.success(expiredAction === 'REPLACE' ? 'Stock Replaced Successfully' : 'Loss Recorded Successfully')
+                setExpiredBatch(null)
+                setExpiredAction(null)
+                setReplacementBatch({ batchNumber: '', expiryDate: '', costPrice: '', sellingPrice: '' })
+                setExpiredNote('')
+                mutate('/api/stock/batches')
+            } else {
+                const data = await res.json()
+                toast.error(data.error || 'Action failed')
+            }
+        } catch (e) {
+            toast.error('Network Error')
         } finally {
             toast.dismiss(loadingToast)
             setSubmitting(false)
@@ -359,13 +413,12 @@ function InventoryView() {
                                             <h4 className="font-bold text-white text-base leading-tight">{item.product.name}</h4>
                                             <p className="text-sm text-slate-500 font-mono mt-0.5 tracking-tight">#{item.batchNumber}</p>
                                         </div>
-                                        {canManageStock && (
-                                            (() => {
-                                                const isExpired = item.expiryDate && new Date(item.expiryDate) < new Date()
-                                                const isOutOfStock = item.quantity <= 0
-                                                const canEdit = !isExpired && !isOutOfStock
-
-                                                return (
+                                        {(() => {
+                                            const isExpired = item.expiryDate && new Date(item.expiryDate) < new Date()
+                                            const isOutOfStock = item.quantity <= 0
+                                            const canEdit = !isExpired && !isOutOfStock
+                                            return (
+                                                <div className="flex gap-1 absolute top-4 right-4">
                                                     <button
                                                         onClick={() => {
                                                             if (!canEdit) return
@@ -381,14 +434,40 @@ function InventoryView() {
                                                             setIsAddModalOpen(true)
                                                         }}
                                                         disabled={!canEdit}
-                                                        className={`absolute top-4 right-4 p-2 rounded-lg transition-all shadow-lg ${canEdit ? 'bg-white/5 text-slate-400 hover:text-white' : 'bg-slate-800/50 text-slate-600 cursor-not-allowed'}`}
+                                                        className={`p-2 rounded-lg transition-all shadow-lg ${canEdit ? 'bg-white/5 text-slate-400 hover:text-white' : 'bg-slate-800/50 text-slate-600 cursor-not-allowed'}`}
                                                         title={isExpired ? "Cannot edit expired stock" : isOutOfStock ? "Cannot edit out of stock items" : "Edit Stock"}
                                                     >
                                                         <Edit2 size={14} />
                                                     </button>
-                                                )
-                                            })()
-                                        )}
+                                                    {isExpired && item.quantity > 0 && (
+                                                        <>
+                                                            <button
+                                                                onClick={() => {
+                                                                    setExpiredBatch(item)
+                                                                    setExpiredAction('REPLACE')
+                                                                    setExpiredQuantity(Number(item.quantity.toFixed(3)))
+                                                                }}
+                                                                className="p-2 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white transition-all shadow-lg"
+                                                                title="Replace Expired Stock"
+                                                            >
+                                                                <RefreshCcw size={14} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => {
+                                                                    setExpiredBatch(item)
+                                                                    setExpiredAction('LOSS')
+                                                                    setExpiredQuantity(Number(item.quantity.toFixed(3)))
+                                                                }}
+                                                                className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-lg"
+                                                                title="Mark as Loss"
+                                                            >
+                                                                <TrendingDown size={14} />
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            )
+                                        })()}
                                     </div>
 
                                     <div className="flex items-center justify-between pt-2 border-t border-white/5">
@@ -403,7 +482,7 @@ function InventoryView() {
                                             <p className="text-[9px] text-slate-500 font-bold transition-all mb-1">Qty</p>
                                             <p className="text-lg font-bold text-emerald-400">
                                                 {Number(item.quantity).toFixed(3)}
-                                                <span className="text-[10px] text-slate-500 font-bold uppercase ml-1">{item.product.unit}</span>
+                                                <span className="text-[10px] text-slate-500 font-bold uppercase ml-1">x {item.product.unit}</span>
                                             </p>
                                         </div>
                                         <div className="text-right">
@@ -453,7 +532,7 @@ function InventoryView() {
                                             <td className="p-4 font-mono text-slate-500 text-xs">#{item.batchNumber}</td>
                                             <td className="p-4 font-bold text-white">
                                                 {item.product.name}
-                                                <span className="text-sm font-bold text-slate-500 ml-2 opacity-60">({item.product.unit})</span>
+                                                <span className="text-sm font-bold text-slate-500 ml-2 opacity-60">(x {item.product.unit})</span>
                                             </td>
                                             <td className="p-4">
                                                 <div className="flex flex-col">
@@ -476,34 +555,64 @@ function InventoryView() {
                                             </td>
                                             {canManageStock && (
                                                 <td className="p-4 text-right">
-                                                    {(() => {
-                                                        const isExpired = item.expiryDate && new Date(item.expiryDate) < new Date()
-                                                        const isOutOfStock = item.quantity <= 0
-                                                        const canEdit = !isExpired && !isOutOfStock
+                                                    <div className="flex justify-end gap-2">
+                                                        {(() => {
+                                                            const isExpired = item.expiryDate && new Date(item.expiryDate) < new Date()
+                                                            const isOutOfStock = item.quantity <= 0
+                                                            const canEdit = !isExpired && !isOutOfStock
 
-                                                        return (
-                                                            <button
-                                                                onClick={() => {
-                                                                    if (!canEdit) return
-                                                                    setEditBatchId(item.id)
-                                                                    setFormData({
-                                                                        productId: item.productId,
-                                                                        batchNumber: item.batchNumber,
-                                                                        quantity: item.quantity.toString(),
-                                                                        expiryDate: item.expiryDate ? new Date(item.expiryDate).toISOString().split('T')[0] : '',
-                                                                        costPrice: item.costPrice?.toString() || '',
-                                                                        sellingPrice: item.sellingPrice?.toString() || ''
-                                                                    })
-                                                                    setIsAddModalOpen(true)
-                                                                }}
-                                                                disabled={!canEdit}
-                                                                className={`p-2 rounded-lg transition-all ${canEdit ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'text-slate-700 cursor-not-allowed'}`}
-                                                                title={isExpired ? "Cannot edit expired stock" : isOutOfStock ? "Cannot edit out of stock items" : "Edit Stock"}
-                                                            >
-                                                                <Edit2 size={16} />
-                                                            </button>
-                                                        )
-                                                    })()}
+                                                            return (
+                                                                <>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            if (!canEdit) return
+                                                                            setEditBatchId(item.id)
+                                                                            setFormData({
+                                                                                productId: item.productId,
+                                                                                batchNumber: item.batchNumber,
+                                                                                quantity: item.quantity.toString(),
+                                                                                expiryDate: item.expiryDate ? new Date(item.expiryDate).toISOString().split('T')[0] : '',
+                                                                                costPrice: item.costPrice?.toString() || '',
+                                                                                sellingPrice: item.sellingPrice?.toString() || ''
+                                                                            })
+                                                                            setIsAddModalOpen(true)
+                                                                        }}
+                                                                        disabled={!canEdit}
+                                                                        className={`p-2 rounded-lg transition-all ${canEdit ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'text-slate-700 cursor-not-allowed'}`}
+                                                                        title={isExpired ? "Cannot edit expired stock" : isOutOfStock ? "Cannot edit out of stock items" : "Edit Stock"}
+                                                                    >
+                                                                        <Edit2 size={16} />
+                                                                    </button>
+                                                                    {isExpired && item.quantity > 0 && (
+                                                                        <>
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    setExpiredBatch(item)
+                                                                                    setExpiredAction('REPLACE')
+                                                                                    setExpiredQuantity(Number(item.quantity.toFixed(3)))
+                                                                                }}
+                                                                                className="p-2 rounded-lg hover:bg-blue-500/20 text-blue-400 transition-all font-bold"
+                                                                                title="Replace"
+                                                                            >
+                                                                                <RefreshCcw size={16} />
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    setExpiredBatch(item)
+                                                                                    setExpiredAction('LOSS')
+                                                                                    setExpiredQuantity(Number(item.quantity.toFixed(3)))
+                                                                                }}
+                                                                                className="p-2 rounded-lg hover:bg-red-500/20 text-red-400 transition-all font-bold"
+                                                                                title="Mark as Loss"
+                                                                            >
+                                                                                <TrendingDown size={16} />
+                                                                            </button>
+                                                                        </>
+                                                                    )}
+                                                                </>
+                                                            )
+                                                        })()}
+                                                    </div>
                                                 </td>
                                             )}
                                         </tr>
@@ -518,8 +627,8 @@ function InventoryView() {
             {/* Add Stock Modal */}
             {
                 isAddModalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                        <Card className="w-full max-w-md">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                        <Card className="w-full max-w-md bg-slate-900 border-white/10 shadow-2xl">
                             <div className="p-2">
                                 <div className="flex justify-between items-center mb-6">
                                     <h2 className="text-xl font-bold text-white">{editBatchId ? 'Edit Stock Batch' : 'Add New Stock Batch'}</h2>
@@ -529,7 +638,7 @@ function InventoryView() {
                                 </div>
                                 <form onSubmit={handleAddStock} className="space-y-4">
                                     <div>
-                                        <label className="label">Select Product</label>
+                                        <label className="label">Select Product *</label>
                                         <select
                                             className="input w-full appearance-none"
                                             required
@@ -544,7 +653,7 @@ function InventoryView() {
                                         </select>
                                     </div>
                                     <Input
-                                        label="Batch Number"
+                                        label="Batch Number *"
                                         required
                                         value={formData.batchNumber}
                                         onChange={e => setFormData({ ...formData, batchNumber: e.target.value })}
@@ -571,7 +680,7 @@ function InventoryView() {
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <Input
-                                            label="Quantity"
+                                            label="Quantity *"
                                             type="number"
                                             required
                                             value={formData.quantity}
@@ -598,6 +707,114 @@ function InventoryView() {
                     </div>
                 )
             }
+
+            {/* Expired Handling Modal */}
+            {expiredBatch && (
+                <div className="fixed inset-0 w-screen h-screen top-0 left-0 z-[999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+                    <Card className={`w-full max-w-lg border-2 bg-slate-900 shadow-2xl ${expiredAction === 'REPLACE' ? 'border-blue-500/30' : 'border-red-500/30'}`}>
+                        <div className="p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <div className="flex items-center gap-3">
+                                    <div className={`p-2 rounded-lg ${expiredAction === 'REPLACE' ? 'bg-blue-500/20 text-blue-400' : 'bg-red-500/20 text-red-500'}`}>
+                                        {expiredAction === 'REPLACE' ? <RefreshCcw size={24} /> : <TrendingDown size={24} />}
+                                    </div>
+                                    <h2 className="text-xl font-bold text-white">
+                                        {expiredAction === 'REPLACE' ? 'Replace Expired Stock' : 'Mark Stock as Loss'}
+                                    </h2>
+                                </div>
+                                <button onClick={() => setExpiredBatch(null)} className="text-slate-400 hover:text-white transition-all">
+                                    <X size={24} />
+                                </button>
+                            </div>
+
+                            <div className="mb-6 p-4 rounded-xl bg-white/5 border border-white/5">
+                                <p className="text-sm text-slate-400 font-bold mb-1">Target Batch</p>
+                                <p className="text-white font-bold">{expiredBatch.product.name}</p>
+                                <p className="text-xs text-slate-500 font-mono">#{expiredBatch.batchNumber} • Expiration Reached</p>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="label">Quantity to Process ({expiredBatch.product.unit}) *</label>
+                                    <Input
+                                        type="number"
+                                        max={expiredBatch.quantity}
+                                        min={0.001}
+                                        step="0.001"
+                                        value={expiredQuantity ? Number(expiredQuantity).toFixed(3) : '0.000'}
+                                        onChange={e => {
+                                            const rawVal = e.target.value;
+                                            if (rawVal === '') {
+                                                setExpiredQuantity(0);
+                                                return;
+                                            }
+                                            const val = Math.max(0, Math.min(expiredBatch.quantity, parseFloat(rawVal) || 0))
+                                            setExpiredQuantity(val)
+                                        }}
+                                    />
+                                    <p className="text-[10px] text-slate-500 mt-1 uppercase font-bold tracking-tighter">Available: {Number(expiredBatch.quantity).toFixed(3)} {expiredBatch.product.unit}</p>
+                                </div>
+
+                                {expiredAction === 'REPLACE' && (
+                                    <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 space-y-4">
+                                        <p className="text-xs font-black text-blue-400 uppercase tracking-widest">New Batch Details</p>
+                                        <Input
+                                            label="New Batch Number *"
+                                            required
+                                            value={replacementBatch.batchNumber}
+                                            onChange={e => setReplacementBatch({ ...replacementBatch, batchNumber: e.target.value })}
+                                            placeholder="Batch from replacement shipment"
+                                        />
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <Input
+                                                label="New Expiry *"
+                                                type="date"
+                                                required
+                                                value={replacementBatch.expiryDate}
+                                                onChange={e => setReplacementBatch({ ...replacementBatch, expiryDate: e.target.value })}
+                                            />
+                                            <Input
+                                                label="Updated MRP (Optional)"
+                                                type="number"
+                                                value={replacementBatch.sellingPrice}
+                                                onChange={e => setReplacementBatch({ ...replacementBatch, sellingPrice: e.target.value })}
+                                                placeholder={expiredBatch.sellingPrice?.toString()}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div>
+                                    <label className="label">Notes / Reason</label>
+                                    <textarea
+                                        className="input w-full min-h-[80px] bg-slate-950/50 resize-none py-2 px-3 text-sm"
+                                        placeholder="Add any details about the replacement/loss..."
+                                        value={expiredNote}
+                                        onChange={e => setExpiredNote(e.target.value)}
+                                    />
+                                </div>
+
+                                <div className="flex gap-3 pt-4">
+                                    <Button
+                                        variant="secondary"
+                                        className="flex-1"
+                                        onClick={() => setExpiredBatch(null)}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        onClick={handleExpiredAction}
+                                        isLoading={submitting}
+                                        className={`flex-1 ${expiredAction === 'REPLACE' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-red-600 hover:bg-red-500'}`}
+                                    >
+                                        {expiredAction === 'REPLACE' ? 'Complete Replacement' : 'Confirm Loss'}
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            )}
         </div >
     )
 }
@@ -609,6 +826,7 @@ type Supplier = {
     address: string | null
     gstNumber: string | null
     isActive: boolean
+    totalOwed: number
 }
 
 function SuppliersView({ onViewOrders }: { onViewOrders: (id: string) => void }) {
@@ -740,6 +958,9 @@ function SuppliersView({ onViewOrders }: { onViewOrders: (id: string) => void })
                                         <div>
                                             <p className="font-bold text-white text-base leading-tight">{s.name}</p>
                                             <p className="text-sm text-slate-500 font-bold transition-all">{s.gstNumber || 'No GST ID'}</p>
+                                            <p className={`text-xs font-bold transition-all ${s.totalOwed > 0 ? 'text-red-400' : 'text-emerald-400'} mt-1`}>
+                                                Owed: {formatCurrency(s.totalOwed)}
+                                            </p>
                                         </div>
                                     </div>
                                     <div className="pt-2 border-t border-white/5 flex flex-col gap-1">
@@ -790,6 +1011,7 @@ function SuppliersView({ onViewOrders }: { onViewOrders: (id: string) => void })
                                         <th className="p-4">Vendor Info</th>
                                         <th className="p-4">Contact Channel</th>
                                         <th className="p-4">Tax ID / GST</th>
+                                        <th className="p-4 text-right">Balance Owed</th>
                                         <th className="p-4 text-center">Lifecycle</th>
                                         <th className="p-4 text-right">Operations</th>
                                     </tr>
@@ -808,6 +1030,9 @@ function SuppliersView({ onViewOrders }: { onViewOrders: (id: string) => void })
                                             </td>
                                             <td className="p-4 text-slate-400 font-bold text-xs">{s.phone || '-'}</td>
                                             <td className="p-4 text-slate-500 font-mono text-sm uppercase tracking-wider">{s.gstNumber || 'N/A'}</td>
+                                            <td className={`p-4 text-right font-bold ${s.totalOwed > 0 ? 'text-red-400' : 'text-slate-400'}`}>
+                                                {formatCurrency(s.totalOwed)}
+                                            </td>
                                             <td className="p-4 text-center">
                                                 <span className={`px-2 py-0.5 rounded text-[9px] font-bold transition-all ${s.isActive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-yellow-500/10 text-yellow-400'}`}>
                                                     {s.isActive ? 'Operational' : 'On Hold'}
@@ -845,7 +1070,7 @@ function SuppliersView({ onViewOrders }: { onViewOrders: (id: string) => void })
             {/* Modals omitted for brevity - assuming they stay same but wrapped in responsive Card if needed */}
             {/* ... Modal code below (Add/Edit Supplier, Delete Supplier) ... */}
             {isAddModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
                     <Card className="w-full max-w-md bg-slate-900 border-white/10 shadow-2xl">
                         <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5">
                             <h2 className="text-xl font-bold text-white tracking-tight">{editingId ? 'Modify Supplier' : 'New Vendor'}</h2>
@@ -855,7 +1080,7 @@ function SuppliersView({ onViewOrders }: { onViewOrders: (id: string) => void })
                         </div>
                         <form onSubmit={handleSaveSupplier} className="p-6 space-y-5">
                             <Input
-                                label="SUPPLIER NAME"
+                                label="SUPPLIER NAME *"
                                 required
                                 value={formData.name}
                                 onChange={e => setFormData({ ...formData, name: e.target.value })}
@@ -914,20 +1139,29 @@ function PurchasesView({ filterSupplierId, clearFilter }: { filterSupplierId: st
     const { canManageStock } = useUser()
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+    const [isVerifyMode, setIsVerifyMode] = useState(false)
+    const [isViewOnly, setIsViewOnly] = useState(false)
     const [submitting, setSubmitting] = useState(false)
-    const [receivePo, setReceivePo] = useState<any>(null)
+    const [cancelPo, setCancelPo] = useState<any>(null)
+    const [deletePoId, setDeletePoId] = useState<string | null>(null)
+    const [editingPoId, setEditingPoId] = useState<string | null>(null)
+    const [tabStatus, setTabStatus] = useState<'PENDING' | 'RECEIVED' | 'CANCELLED'>('PENDING')
 
     // PO Form State
     const [poData, setPoData] = useState({
         supplierId: '',
         invoiceNumber: '',
-        items: [{ productId: '', quantity: 1, costPrice: 0, total: 0 }]
+        paidAmount: 0,
+        paymentMode: 'CASH' as 'CASH' | 'UPI' | 'CREDIT',
+        items: [{ productId: '', quantity: 1, costPrice: 0, sellingPrice: 0, expiryDate: '', total: 0 }]
     })
 
     const addItem = () => {
+        const newItem = { productId: '', quantity: 1, costPrice: 0, sellingPrice: 0, expiryDate: '', total: 0 }
+        const newItems = [...poData.items, newItem]
         setPoData(prev => ({
             ...prev,
-            items: [...prev.items, { productId: '', quantity: 1, costPrice: 0, total: 0 }]
+            items: newItems
         }))
     }
 
@@ -937,43 +1171,71 @@ function PurchasesView({ filterSupplierId, clearFilter }: { filterSupplierId: st
 
         if (field === 'productId') {
             item.productId = value
-        } else if (field === 'quantity' || field === 'costPrice') {
+            const p = products?.find(prod => prod.id === value)
+            if (p) {
+                // Pre-fill values from product master
+                item.sellingPrice = (p as any).sellingPrice || 0
+                item.costPrice = (p as any).costPrice || 0
+                item.total = Number(item.quantity) * Number(item.costPrice)
+            }
+        } else if (field === 'quantity' || field === 'costPrice' || field === 'sellingPrice') {
             (item as any)[field] = Number(value)
-            item.total = item.quantity * item.costPrice
+            // Recalculate item total specifically when quantity or costPrice changes
+            item.total = Number(item.quantity) * Number(item.costPrice)
+        } else if (field === 'expiryDate') {
+            item.expiryDate = value
         }
 
         newItems[index] = item
-        setPoData({ ...poData, items: newItems })
+        const newTotal = newItems.reduce((acc, i) => acc + i.total, 0)
+        setPoData({ ...poData, items: newItems, paidAmount: newTotal })
     }
 
     const removeItem = (index: number) => {
         if (poData.items.length === 1) return
         const newItems = poData.items.filter((_, i) => i !== index)
-        setPoData({ ...poData, items: newItems })
+        const newTotal = newItems.reduce((acc, i) => acc + i.total, 0)
+        setPoData({ ...poData, items: newItems, paidAmount: newTotal })
     }
 
     const handleCreatePO = async (status: 'PENDING' | 'RECEIVED') => {
         setSubmitting(true)
-        const loadingToast = toast.loading('Synchronizing Purchase...')
+        const loadingToast = toast.loading(isVerifyMode ? 'Finalizing Receipt...' : 'Synchronizing Purchase...')
         const validItems = poData.items.filter(i => i.productId && i.quantity > 0)
 
         try {
-            const res = await fetch('/api/stock/purchases', {
-                method: 'POST',
+            const endpoint = '/api/stock/purchases'
+            const method = isVerifyMode ? 'PUT' : 'POST'
+
+            const payload: any = {
+                supplierId: poData.supplierId,
+                invoiceNumber: poData.invoiceNumber,
+                paidAmount: poData.paidAmount,
+                paymentMode: poData.paymentMode,
+                items: validItems.map(i => ({
+                    ...i,
+                    sellingPrice: i.sellingPrice || null,
+                    expiryDate: i.expiryDate || null
+                })),
+                status
+            }
+
+            if (isVerifyMode) {
+                payload.id = editingPoId
+                payload.action = 'receive'
+            }
+
+            const res = await fetch(endpoint, {
+                method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    supplierId: poData.supplierId,
-                    invoiceNumber: poData.invoiceNumber,
-                    items: validItems,
-                    status
-                })
+                body: JSON.stringify(payload)
             })
 
             if (res.ok) {
-                toast.success(status === 'RECEIVED' ? 'Restock Completed' : 'Import Draft Saved')
-                setIsAddModalOpen(false)
-                setPoData({ supplierId: '', invoiceNumber: '', items: [{ productId: '', quantity: 1, costPrice: 0, total: 0 }] })
+                toast.success(status === 'RECEIVED' ? 'Inventory Synchronized' : 'Import Draft Saved')
+                closePOModal()
                 mutate('/api/stock/purchases')
+                mutate('/api/suppliers')
                 if (status === 'RECEIVED') mutate('/api/stock/batches')
             } else {
                 toast.error('Transaction Failed')
@@ -986,23 +1248,94 @@ function PurchasesView({ filterSupplierId, clearFilter }: { filterSupplierId: st
         }
     }
 
-    const executeReceive = async () => {
-        if (!receivePo) return
-        const loadingToast = toast.loading('Receiving Shipments...')
+    const startVerification = async (po: any, viewOnly = false) => {
+        const loadingToast = toast.loading('Fetching Document...')
+        setIsViewOnly(viewOnly)
+        try {
+            const res = await fetch(`/api/stock/purchases?id=${po.id}`)
+            if (res.ok) {
+                const fullPo = await res.json()
+                setPoData({
+                    supplierId: fullPo.supplierId,
+                    invoiceNumber: fullPo.invoiceNumber || '',
+                    paidAmount: Number(fullPo.paidAmount || 0),
+                    paymentMode: fullPo.paymentMode as any,
+                    items: fullPo.items.map((it: any) => ({
+                        productId: it.productId,
+                        quantity: Number(it.quantity),
+                        costPrice: Number(it.costPrice),
+                        sellingPrice: it.sellingPrice ? Number(it.sellingPrice) : 0,
+                        expiryDate: it.expiryDate ? it.expiryDate.split('T')[0] : '',
+                        total: Number(it.total)
+                    }))
+                })
+                setEditingPoId(po.id)
+                setIsVerifyMode(!viewOnly)
+                setIsAddModalOpen(true)
+            }
+        } catch (e) {
+            toast.error('Failed to load order')
+        } finally {
+            toast.dismiss(loadingToast)
+        }
+    }
+
+    const closePOModal = () => {
+        setIsAddModalOpen(false)
+        setIsVerifyMode(false)
+        setIsViewOnly(false)
+        setEditingPoId(null)
+        setPoData({
+            supplierId: '',
+            invoiceNumber: '',
+            paidAmount: 0,
+            paymentMode: 'CASH',
+            items: [{ productId: '', quantity: 1, costPrice: 0, sellingPrice: 0, expiryDate: '', total: 0 }]
+        })
+    }
+
+    const executeDeletePO = async () => {
+        if (!deletePoId) return
+        setSubmitting(true)
+        const loadingToast = toast.loading('Deleting Purchase Order...')
+        try {
+            const res = await fetch(`/api/stock/purchases?id=${deletePoId}`, {
+                method: 'DELETE'
+            })
+
+            if (res.ok) {
+                toast.success('Purchase Deleted Successfully')
+                mutate('/api/stock/purchases')
+                mutate('/api/suppliers')
+                setDeletePoId(null)
+            } else {
+                toast.error('Failed to delete purchase')
+            }
+        } catch (e) {
+            toast.error('Network mistake during deletion')
+        } finally {
+            toast.dismiss(loadingToast)
+            setSubmitting(false)
+        }
+    }
+
+    const executeCancel = async () => {
+        if (!cancelPo) return
+        const loadingToast = toast.loading('Rejecting Shipment...')
         try {
             const res = await fetch('/api/stock/purchases', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: receivePo.id, action: 'receive' })
+                body: JSON.stringify({ id: cancelPo.id, action: 'cancel' })
             })
 
             if (res.ok) {
-                toast.success('Inventory Synchronized')
+                toast.success('Order Nullified')
                 mutate('/api/stock/purchases')
-                mutate('/api/stock/batches')
-                setReceivePo(null)
+                mutate('/api/suppliers')
+                setCancelPo(null)
             } else {
-                toast.error('Sync Error')
+                toast.error('Cancellation Failed')
             }
         } catch (e) {
             toast.error('Network Error')
@@ -1012,28 +1345,77 @@ function PurchasesView({ filterSupplierId, clearFilter }: { filterSupplierId: st
     }
 
     const totalAmount = poData.items.reduce((acc, item) => acc + item.total, 0)
-    const filteredPurchases = filterSupplierId
-        ? purchases?.filter((p: any) => p.supplierId === filterSupplierId)
-        : purchases
+
+    const filteredPurchases = purchases?.filter((p: any) => {
+        const matchesSupplier = filterSupplierId ? p.supplierId === filterSupplierId : true
+        const matchesStatus = p.status === tabStatus
+        return matchesSupplier && matchesStatus
+    })
+
+    const awaitingCount = purchases?.filter((p: any) => p.status === 'PENDING').length || 0
+    const deliveredCount = purchases?.filter((p: any) => p.status === 'RECEIVED').length || 0
+    const awaitingValue = purchases?.filter((p: any) => p.status === 'PENDING').reduce((acc: number, p: any) => acc + Number(p.totalAmount || 0), 0) || 0
+    const deliveredValue = purchases?.filter((p: any) => p.status === 'RECEIVED').reduce((acc: number, p: any) => acc + Number(p.totalAmount || 0), 0) || 0
 
     return (
         <React.Fragment>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <Card className="p-4 flex items-center justify-between bg-yellow-500/5 border-yellow-500/10 shadow-lg shadow-yellow-900/5">
+                    <div>
+                        <p className="text-sm text-yellow-500 font-bold transition-all">Pipeline: Awaiting</p>
+                        <h3 className="text-2xl font-bold text-white">{formatCurrency(awaitingValue)}</h3>
+                        <p className="text-sm text-slate-500 font-medium">{awaitingCount} incoming shipments</p>
+                    </div>
+                    <div className="p-3 bg-yellow-500/10 rounded-2xl text-yellow-500">
+                        <Pause size={24} />
+                    </div>
+                </Card>
+                <Card className="p-4 flex items-center justify-between bg-emerald-500/5 border-emerald-500/10 shadow-lg shadow-emerald-900/5">
+                    <div>
+                        <p className="text-sm text-emerald-500 font-bold transition-all">Pipeline: Delivered</p>
+                        <h3 className="text-2xl font-bold text-white">{formatCurrency(deliveredValue)}</h3>
+                        <p className="text-sm text-slate-500 font-medium">{deliveredCount} completed receipts</p>
+                    </div>
+                    <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500">
+                        <Truck size={24} />
+                    </div>
+                </Card>
+            </div>
+
             <Card className="p-0 overflow-hidden border-white/10 bg-slate-900/40">
                 <div className="p-4 border-b border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white/5">
                     <div className="flex flex-col md:flex-row md:items-center gap-4">
-                        <h3 className="font-bold text-white text-lg tracking-tight">Purchase Orders</h3>
+                        <h3 className="font-bold text-white text-lg tracking-tight">Purchase Pipeline</h3>
+                        <div className="flex bg-slate-950/50 p-1 rounded-xl border border-white/5">
+                            {[
+                                { id: 'PENDING', label: 'Awaiting', count: awaitingCount, color: 'text-yellow-400' },
+                                { id: 'RECEIVED', label: 'Delivered', count: deliveredCount, color: 'text-emerald-400' },
+                                { id: 'CANCELLED', label: 'Rejected', count: 0, color: 'text-red-400' }
+                            ].map((tab) => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setTabStatus(tab.id as any)}
+                                    className={`px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all flex items-center gap-2 ${tabStatus === tab.id ? 'bg-white/10 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                                >
+                                    {tab.label}
+                                    <span className={`px-1.5 py-0.5 rounded-md bg-white/5 ${tab.color} text-[8px]`}>{tab.count}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3 w-full md:w-auto">
                         {filterSupplierId && (
-                            <span className="flex items-center gap-2 px-3 py-1 text-[9px] font-bold transition-all rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                            <span className="flex items-center gap-2 px-3 py-1.5 text-[9px] font-bold transition-all rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
                                 Vendor Lockdown
                                 <button onClick={clearFilter} className="hover:text-white"><X size={12} /></button>
                             </span>
                         )}
+                        {canManageStock && (
+                            <Button onClick={() => setIsAddModalOpen(true)} className="flex-1 md:flex-none h-10 px-6 rounded-xl shadow-lg shadow-purple-900/40 font-bold transition-all text-sm">
+                                <Plus size={16} className="mr-2" /> New PO
+                            </Button>
+                        )}
                     </div>
-                    {canManageStock && (
-                        <Button onClick={() => setIsAddModalOpen(true)} className="w-full md:w-auto h-10 px-6 rounded-xl shadow-lg shadow-purple-900/40 font-bold transition-all text-sm">
-                            <Plus size={16} className="mr-2" /> New Purchase Record
-                        </Button>
-                    )}
                 </div>
 
                 {isLoading ? (
@@ -1068,14 +1450,39 @@ function PurchasesView({ filterSupplierId, clearFilter }: { filterSupplierId: st
                                             <p className="text-sm text-slate-500 font-bold transition-all">{new Date(po.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</p>
                                         </div>
                                     </div>
-                                    {po.status !== 'RECEIVED' && canManageStock && (
-                                        <Button
-                                            className="w-full h-10 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-all text-sm shadow-lg shadow-emerald-900/20"
-                                            onClick={() => setReceivePo(po)}
-                                        >
-                                            Finalize & Receive Stock
-                                        </Button>
+                                    {po.status === 'PENDING' && canManageStock && (
+                                        <div className="flex gap-2">
+                                            <button
+                                                className="flex-1 h-11 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-all text-sm shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-2"
+                                                onClick={() => startVerification(po)}
+                                            >
+                                                Verify & Receive
+                                            </button>
+                                            <button
+                                                className="w-11 h-11 rounded-xl bg-amber-600 text-white hover:bg-amber-500 transition-all shadow-lg flex items-center justify-center"
+                                                onClick={() => setCancelPo(po)}
+                                            >
+                                                <X size={20} className="text-white" strokeWidth={3} />
+                                            </button>
+                                        </div>
                                     )}
+                                    <div className="flex gap-2 pt-2">
+                                        <button
+                                            className="flex-1 h-11 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-500 transition-all shadow-lg flex items-center justify-center gap-2"
+                                            onClick={() => startVerification(po, true)}
+                                        >
+                                            <Search size={18} className="text-white" strokeWidth={3} />
+                                            View Details
+                                        </button>
+                                        {canManageStock && (
+                                            <button
+                                                className="w-11 h-11 rounded-xl bg-red-600 text-white hover:bg-red-500 transition-all shadow-lg flex items-center justify-center"
+                                                onClick={() => setDeletePoId(po.id)}
+                                            >
+                                                <Trash2 size={20} className="text-white" strokeWidth={3} />
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             ))}
                             {filteredPurchases?.length === 0 && (
@@ -1111,16 +1518,51 @@ function PurchasesView({ filterSupplierId, clearFilter }: { filterSupplierId: st
                                             <td className="p-4 text-center text-slate-400 font-bold">{po._count.items}</td>
                                             <td className="p-4 text-right font-bold text-white text-base">{formatCurrency(po.totalAmount)}</td>
                                             <td className="p-4 text-center">
-                                                <span className={`px-2 py-0.5 rounded text-[9px] font-bold transition-all ${po.status === 'RECEIVED' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-yellow-500/10 text-yellow-400'}`}>
-                                                    {po.status === 'RECEIVED' ? 'Operational' : 'En Route'}
+                                                <span className={`px-2 py-0.5 rounded text-[9px] font-bold transition-all uppercase ${po.status === 'RECEIVED' ? 'bg-emerald-500/10 text-emerald-400' :
+                                                    po.status === 'CANCELLED' ? 'bg-red-500/10 text-red-400' :
+                                                        'bg-yellow-500/10 text-yellow-400'
+                                                    }`}>
+                                                    {po.status === 'RECEIVED' ? 'Delivered' :
+                                                        po.status === 'CANCELLED' ? 'Rejected' :
+                                                            'Awaiting'}
                                                 </span>
                                             </td>
                                             <td className="p-4 text-right">
-                                                {po.status !== 'RECEIVED' && canManageStock && (
-                                                    <Button variant="secondary" className="h-8 text-[9px] font-bold transition-all bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white border-none rounded-lg px-4 transition-all" onClick={() => setReceivePo(po)}>
-                                                        Synchronize
-                                                    </Button>
-                                                )}
+                                                <div className="flex justify-end gap-2">
+                                                    <button
+                                                        className="h-9 w-9 bg-blue-600 text-white hover:bg-blue-500 rounded-xl transition-all shadow-lg flex items-center justify-center group/btn"
+                                                        onClick={() => startVerification(po, true)}
+                                                        title="View Details"
+                                                    >
+                                                        <Search size={18} className="text-white" strokeWidth={3} />
+                                                    </button>
+                                                    {po.status === 'PENDING' && canManageStock && (
+                                                        <>
+                                                            <button
+                                                                className="h-9 px-4 bg-emerald-600 text-white hover:bg-emerald-500 font-bold text-xs rounded-xl transition-all shadow-lg flex items-center gap-2"
+                                                                onClick={() => startVerification(po)}
+                                                            >
+                                                                Verify & Receive
+                                                            </button>
+                                                            <button
+                                                                className="h-9 w-9 bg-amber-600 text-white hover:bg-amber-500 rounded-xl transition-all shadow-lg flex items-center justify-center"
+                                                                onClick={() => setCancelPo(po)}
+                                                                title="Reject/Void"
+                                                            >
+                                                                <X size={18} className="text-white" strokeWidth={3} />
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                    {canManageStock && (
+                                                        <button
+                                                            className="h-9 w-9 bg-red-600 text-white hover:bg-red-500 rounded-xl transition-all shadow-lg flex items-center justify-center"
+                                                            onClick={() => setDeletePoId(po.id)}
+                                                            title="Delete Forever"
+                                                        >
+                                                            <Trash2 size={18} className="text-white" strokeWidth={3} />
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -1137,10 +1579,14 @@ function PurchasesView({ filterSupplierId, clearFilter }: { filterSupplierId: st
                     <Card className="w-full max-w-5xl max-h-[95vh] flex flex-col bg-slate-900 border-white/10 shadow-2xl overflow-hidden rounded-2xl">
                         <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5">
                             <div>
-                                <h2 className="text-xl font-bold text-white tracking-tight">Create Purchase Order</h2>
-                                <p className="text-sm text-slate-500 font-bold transition-all">Inbound Stock Logistics</p>
+                                <h2 className="text-xl font-bold text-white tracking-tight">
+                                    {isViewOnly ? 'Purchase Order Details' : isVerifyMode ? 'Verify & Receive Stock' : 'Create Purchase Order'}
+                                </h2>
+                                <p className="text-sm text-slate-500 font-bold transition-all">
+                                    {isViewOnly ? `Transaction ID: #${editingPoId?.slice(0, 8)}` : isVerifyMode ? `Editing Order #${editingPoId?.slice(0, 8)}` : 'Inbound Stock Logistics'}
+                                </p>
                             </div>
-                            <button onClick={() => setIsAddModalOpen(false)} className="text-slate-500 hover:text-white transition-colors">
+                            <button onClick={closePOModal} className="text-slate-500 hover:text-white transition-colors">
                                 <X size={24} />
                             </button>
                         </div>
@@ -1149,12 +1595,13 @@ function PurchasesView({ filterSupplierId, clearFilter }: { filterSupplierId: st
                             <form id="po-form" className="space-y-8">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div className="space-y-2">
-                                        <label className="text-sm font-bold text-slate-500 ml-1">Select Active Vendor</label>
+                                        <label className="text-sm font-bold text-slate-500 ml-1">Issuing Entity / Supplier *</label>
                                         <select
                                             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-all appearance-none"
                                             required
                                             value={poData.supplierId}
                                             onChange={e => setPoData({ ...poData, supplierId: e.target.value })}
+                                            disabled={isViewOnly}
                                         >
                                             <option value="" className="bg-slate-900">-- Select Entity --</option>
                                             {suppliers?.map(s => (
@@ -1163,11 +1610,38 @@ function PurchasesView({ filterSupplierId, clearFilter }: { filterSupplierId: st
                                         </select>
                                     </div>
                                     <Input
-                                        label="INVOICE / REFERENCE NUMBER"
+                                        label="INVOICE / REFERENCE NUMBER *"
+                                        required
                                         placeholder="e.g. SHIP-001-X"
                                         value={poData.invoiceNumber}
                                         onChange={e => setPoData({ ...poData, invoiceNumber: e.target.value })}
                                         className="bg-white/5 border-white/10"
+                                        disabled={isViewOnly}
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-bold text-slate-500 ml-1">Payment Mode</label>
+                                        <select
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500 appearance-none"
+                                            value={poData.paymentMode}
+                                            onChange={e => setPoData({ ...poData, paymentMode: e.target.value as any })}
+                                            disabled={isViewOnly}
+                                        >
+                                            <option value="CASH" className="bg-slate-900">Paid by Cash</option>
+                                            <option value="UPI" className="bg-slate-900">Paid by UPI/Online</option>
+                                            <option value="CREDIT" className="bg-slate-900">Purchase on Credit</option>
+                                        </select>
+                                    </div>
+                                    <Input
+                                        label="PAID AMOUNT"
+                                        type="number"
+                                        placeholder="Amount already paid"
+                                        value={poData.paidAmount}
+                                        onChange={e => setPoData({ ...poData, paidAmount: Number(e.target.value) })}
+                                        className="bg-white/5 border-white/10"
+                                        disabled={isViewOnly}
                                     />
                                 </div>
 
@@ -1177,7 +1651,7 @@ function PurchasesView({ filterSupplierId, clearFilter }: { filterSupplierId: st
                                             <h3 className="font-bold text-white text-base tracking-tight">Manifest Items</h3>
                                             <p className="text-[9px] text-slate-500 font-bold transition-all">Detail all inbound SKUs</p>
                                         </div>
-                                        <Button type="button" variant="secondary" onClick={addItem} className="text-[9px] font-bold transition-all h-8 px-4 bg-white/5 border-white/5 hover:border-purple-500 transition-all">
+                                        <Button type="button" variant="secondary" onClick={addItem} className="text-[9px] font-bold transition-all h-8 px-4 bg-white/5 border-white/5 hover:border-purple-500 transition-all" disabled={isViewOnly}>
                                             <Plus size={14} className="mr-1" /> Add Entry
                                         </Button>
                                     </div>
@@ -1187,58 +1661,88 @@ function PurchasesView({ filterSupplierId, clearFilter }: { filterSupplierId: st
                                             const selectedProduct = products?.find(p => p.id === item.productId)
                                             return (
                                                 <div key={idx} className="grid grid-cols-1 md:flex gap-3 items-center p-3 rounded-2xl bg-white/5 border border-white/5 hover:border-white/10 transition-all relative group">
-                                                    <div className="flex-[3] w-full">
+                                                    <div className="flex-[4] w-full">
                                                         <select
                                                             className="w-full bg-slate-950/50 border border-white/5 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500 appearance-none"
                                                             required
                                                             value={item.productId}
                                                             onChange={e => updateItem(idx, 'productId', e.target.value)}
+                                                            disabled={isViewOnly}
                                                         >
-                                                            <option value="" className="bg-slate-900">Search Product Manifest...</option>
+                                                            <option value="" className="bg-slate-900">Search Product Manifest... *</option>
                                                             {products?.map(p => (
                                                                 <option key={p.id} value={p.id} className="bg-slate-900">{p.name} ({p.barcode})</option>
                                                             ))}
                                                         </select>
                                                     </div>
-                                                    <div className="flex-[2] flex gap-2 w-full">
+                                                    <div className="flex-[6] flex gap-1.5 w-full">
                                                         <div className="relative flex-1">
                                                             <input
                                                                 type="number"
-                                                                className="w-full bg-slate-950/50 border border-white/5 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
+                                                                className="w-full bg-slate-950/50 border border-white/5 rounded-lg pl-2 pr-8 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
                                                                 placeholder="Qty"
-                                                                min="1"
+                                                                min="0.001"
+                                                                step="0.001"
                                                                 value={item.quantity}
                                                                 onChange={e => updateItem(idx, 'quantity', e.target.value)}
+                                                                disabled={isViewOnly}
                                                             />
-                                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-bold text-slate-600 pointer-events-none">
-                                                                {selectedProduct?.unit || 'Units'}
+                                                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-500 pointer-events-none uppercase">
+                                                                {selectedProduct?.unit || 'Qty'}
                                                             </span>
                                                         </div>
                                                         <div className="relative flex-1">
                                                             <input
                                                                 type="number"
-                                                                className="w-full bg-slate-950/50 border border-white/5 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
+                                                                className="w-full bg-slate-950/50 border border-white/5 rounded-lg pl-2 pr-6 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
                                                                 placeholder="Cost"
                                                                 min="0"
                                                                 step="0.01"
                                                                 value={item.costPrice}
                                                                 onChange={e => updateItem(idx, 'costPrice', e.target.value)}
+                                                                disabled={isViewOnly}
                                                             />
-                                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-bold text-slate-600 pointer-events-none">
-                                                                Price
+                                                            <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] font-bold text-purple-400 pointer-events-none">
+                                                                CP
                                                             </span>
                                                         </div>
+                                                        <div className="relative flex-1">
+                                                            <input
+                                                                type="number"
+                                                                className="w-full bg-slate-950/50 border border-white/5 rounded-lg pl-2 pr-6 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
+                                                                placeholder="Sell"
+                                                                min="0"
+                                                                step="0.01"
+                                                                value={item.sellingPrice}
+                                                                onChange={e => updateItem(idx, 'sellingPrice', e.target.value)}
+                                                                disabled={isViewOnly}
+                                                            />
+                                                            <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] font-bold text-emerald-400 pointer-events-none">
+                                                                SP
+                                                            </span>
+                                                        </div>
+                                                        <div className="relative flex-[1.4]">
+                                                            <input
+                                                                type="date"
+                                                                className="w-full bg-slate-950/50 border border-white/5 rounded-lg px-2 py-2 text-[10px] text-white focus:outline-none focus:border-purple-500"
+                                                                value={item.expiryDate}
+                                                                onChange={e => updateItem(idx, 'expiryDate', e.target.value)}
+                                                                disabled={isViewOnly}
+                                                            />
+                                                        </div>
                                                     </div>
-                                                    <div className="hidden md:flex flex-[1] items-center justify-end text-sm font-bold text-emerald-400 py-2 px-3 bg-white/5 rounded-lg">
+                                                    <div className="hidden md:flex flex-[1.2] items-center justify-end text-sm font-bold text-emerald-400 py-2 px-3 bg-white/5 rounded-lg min-w-[90px]">
                                                         {formatCurrency(item.total)}
                                                     </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => removeItem(idx)}
-                                                        className="absolute -top-2 -right-2 md:relative md:top-0 md:right-0 p-2 bg-red-500/10 md:bg-transparent text-red-500 hover:scale-110 transition-transform"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
+                                                    {!isViewOnly && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeItem(idx)}
+                                                            className="absolute -top-2 -right-2 md:relative md:top-0 md:right-0 p-2 bg-red-500/10 md:bg-transparent text-red-500 hover:scale-110 transition-transform"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    )}
                                                 </div>
                                             )
                                         })}
@@ -1253,28 +1757,42 @@ function PurchasesView({ filterSupplierId, clearFilter }: { filterSupplierId: st
                                 <p className="text-4xl font-bold text-white tracking-tighter">{formatCurrency(totalAmount)}</p>
                             </div>
                             <div className="flex flex-wrap gap-3 w-full md:w-auto">
-                                <Button type="button" variant="secondary" onClick={() => setIsAddModalOpen(false)} className="flex-1 md:flex-none border-white/5 bg-white/5 h-12 md:h-10 text-sm font-bold transition-all px-8">
-                                    Discard
+                                <Button type="button" variant="secondary" onClick={closePOModal} className="flex-1 md:flex-none border-white/5 bg-white/5 h-12 md:h-10 text-sm font-bold transition-all px-8">
+                                    {isViewOnly ? 'Close' : 'Discard'}
                                 </Button>
-                                <Button type="button" variant="secondary" isLoading={submitting} onClick={() => handleCreatePO('PENDING')} className="flex-1 md:flex-none border-purple-500/20 bg-purple-500/5 h-12 md:h-10 text-sm font-bold transition-all px-8">
-                                    Save Draft
-                                </Button>
-                                <Button type="button" isLoading={submitting} className="flex-1 md:flex-none h-12 md:h-10 text-sm font-bold transition-all px-8 shadow-xl shadow-emerald-900/40" onClick={() => handleCreatePO('RECEIVED')}>
-                                    Finalize Receipt
-                                </Button>
+                                {!isVerifyMode && !isViewOnly && (
+                                    <Button type="button" variant="secondary" isLoading={submitting} onClick={() => handleCreatePO('PENDING')} className="flex-1 md:flex-none border-purple-500/20 bg-purple-500/5 h-12 md:h-10 text-sm font-bold transition-all px-8">
+                                        Save Draft
+                                    </Button>
+                                )}
+                                {!isViewOnly && (
+                                    <Button type="button" isLoading={submitting} className="flex-1 md:flex-none h-12 md:h-10 text-sm font-bold transition-all px-8 shadow-xl shadow-emerald-900/40" onClick={() => handleCreatePO('RECEIVED')}>
+                                        {isVerifyMode ? 'Verify & Finalize' : 'Finalize Receipt'}
+                                    </Button>
+                                )}
                             </div>
                         </div>
                     </Card>
                 </div>
             )}
             <ConfirmationModal
-                isOpen={!!receivePo}
-                onClose={() => setReceivePo(null)}
-                onConfirm={executeReceive}
-                title="Synchronize Stock"
-                message={`Verify and finalize inbound manifest #${receivePo?.invoiceNumber || receivePo?.id.slice(0, 8)}? Inventory will be updated immediately.`}
-                confirmText="Verify & Receive"
-                variant="info"
+                isOpen={!!cancelPo}
+                onClose={() => setCancelPo(null)}
+                onConfirm={executeCancel}
+                title="Nullify Shipment"
+                message={`Permanently reject and discard manifest #${cancelPo?.invoiceNumber || cancelPo?.id?.slice(0, 8)}? This will strike the record and ignore the shipment.`}
+                confirmText="Reject Order"
+                variant="danger"
+            />
+            <ConfirmationModal
+                isOpen={!!deletePoId}
+                onClose={() => setDeletePoId(null)}
+                onConfirm={executeDeletePO}
+                title="Delete Purchase Record"
+                message={`Are you sure you want to permanently delete this purchase record? This will also remove any inventory batches created by this order. This action cannot be undone.`}
+                confirmText="Delete Forever"
+                variant="danger"
+                isLoading={submitting}
             />
         </React.Fragment>
     )

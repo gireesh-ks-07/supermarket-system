@@ -24,7 +24,7 @@ export async function PUT(
 
     const { id } = await params
     const body = await request.json()
-    const { name, barcode, category, brand, unit, costPrice, sellingPrice, taxPercent, minStockLevel } = body
+    const { name, barcode, category, brand, unit, costPrice, sellingPrice, taxPercent, minStockLevel, pricingType } = body
 
     try {
         const product = await prisma.product.update({
@@ -38,9 +38,21 @@ export async function PUT(
                 costPrice: Number(costPrice),
                 sellingPrice: Number(sellingPrice),
                 taxPercent: Number(taxPercent),
-                minStockLevel: Number(minStockLevel)
-            }
+                minStockLevel: Number(minStockLevel),
+                pricingType: pricingType || 'MRP'
+            } as any
         })
+
+        // If it's a dynamic product, update price of all valid previous stocks
+        if ((product as any).pricingType === 'DYNAMIC') {
+            await prisma.$executeRaw`
+                UPDATE "ProductBatch"
+                SET "sellingPrice" = ${Number(sellingPrice)}, "updatedAt" = NOW()
+                WHERE "productId" = ${id}
+                  AND "quantity" > 0
+                  AND ("expiryDate" IS NULL OR "expiryDate" > NOW())
+            `
+        }
         return NextResponse.json({ success: true, product })
     } catch (e) {
         return NextResponse.json({ error: 'Failed to update product' }, { status: 400 })

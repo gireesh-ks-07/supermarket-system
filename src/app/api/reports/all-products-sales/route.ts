@@ -24,18 +24,21 @@ export async function GET(request: Request) {
         let startDate = new Date()
         let endDate: Date | undefined
 
+        const localDateStr = dateParam ? (dateParam.includes('T') ? dateParam : `${dateParam}T00:00:00`) : null
+        const baseDate = localDateStr ? new Date(localDateStr) : new Date()
+        if (isNaN(baseDate.getTime())) baseDate.setTime(Date.now())
+
         if (period === 'custom' && dateParam) {
-            startDate = new Date(dateParam)
-            if (isNaN(startDate.getTime())) startDate = new Date()
+            startDate = new Date(baseDate)
             endDate = new Date(startDate)
             endDate.setDate(endDate.getDate() + 1)
         } else if (period === 'daily') {
-            startDate = new Date()
+            startDate = new Date(baseDate)
             startDate.setHours(0, 0, 0, 0)
             endDate = new Date(startDate)
             endDate.setDate(endDate.getDate() + 1)
         } else if (period === 'weekly') {
-            startDate = new Date()
+            startDate = new Date(baseDate)
             const day = startDate.getDay()
             const diff = startDate.getDate() - day + (day === 0 ? -6 : 1)
             startDate.setDate(diff)
@@ -43,13 +46,13 @@ export async function GET(request: Request) {
             endDate = new Date(startDate)
             endDate.setDate(endDate.getDate() + 7)
         } else if (period === 'monthly') {
-            startDate = new Date()
+            startDate = new Date(baseDate)
             startDate.setDate(1)
             startDate.setHours(0, 0, 0, 0)
             endDate = new Date(startDate)
             endDate.setMonth(endDate.getMonth() + 1)
         } else if (period === 'yearly') {
-            startDate = new Date()
+            startDate = new Date(baseDate)
             startDate.setMonth(0, 1)
             startDate.setHours(0, 0, 0, 0)
             endDate = new Date(startDate)
@@ -73,7 +76,7 @@ export async function GET(request: Request) {
 
         const products = await prisma.product.findMany({
             where: { id: { in: productIds } },
-            select: { id: true, name: true, category: true, unit: true, barcode: true }
+            select: { id: true, name: true, category: true, unit: true, barcode: true, costPrice: true, pricingType: true }
         })
 
         const productMap = new Map(products.map(p => [p.id, p]))
@@ -100,10 +103,20 @@ export async function GET(request: Request) {
             stat.qty += Number(item.quantity)
             stat.revenue += Number(item.total)
 
-            // Cast to any to get costPrice if it exists in DB schema but missing in types
+            // Dynamic logic: use batch cost for variable, product cost for MRP
+            const isVariable = (product as any).pricingType === 'DYNAMIC'
             const costParam = (item as any).costPrice;
-            const cost = costParam ? Number(costParam) : 0
-            const profitObj = Number(item.total) - (cost * Number(item.quantity))
+
+            let itemCost = 0
+            if (isVariable) {
+                itemCost = costParam !== null && costParam !== undefined
+                    ? Number(costParam)
+                    : (product.costPrice ? Number(product.costPrice) : 0)
+            } else {
+                itemCost = (product.costPrice ? Number(product.costPrice) : 0)
+            }
+
+            const profitObj = Number(item.total) - (itemCost * Number(item.quantity))
             stat.profit += profitObj
         }
 

@@ -418,7 +418,7 @@ export default function SalesHistoryPage() {
                                         <div className="space-y-2 pt-1">
                                             <div className="relative">
                                                 <Input
-                                                    placeholder="Name"
+                                                    placeholder="Name *"
                                                     value={editedCustomer?.name || ''}
                                                     onFocus={() => setActiveSuggestionField('NAME')}
                                                     onChange={(e) => {
@@ -428,6 +428,7 @@ export default function SalesHistoryPage() {
                                                     }}
                                                     className="h-8 bg-slate-900 text-xs border-slate-700"
                                                     wrapperClassName="mb-0"
+                                                    required
                                                 />
                                                 {activeSuggestionField === 'NAME' && filteredCustomers.length > 0 && (
                                                     <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-slate-800 border border-white/10 rounded-lg shadow-2xl overflow-hidden max-h-32 overflow-y-auto">
@@ -452,7 +453,7 @@ export default function SalesHistoryPage() {
                                             </div>
                                             <div className="relative">
                                                 <Input
-                                                    placeholder="Flat / Room"
+                                                    placeholder="Flat / Room *"
                                                     value={editedCustomer?.flatNumber || ''}
                                                     onFocus={() => setActiveSuggestionField('FLAT')}
                                                     onChange={(e) => {
@@ -462,6 +463,7 @@ export default function SalesHistoryPage() {
                                                     }}
                                                     className="h-8 bg-slate-900 text-xs border-slate-700"
                                                     wrapperClassName="mb-0"
+                                                    required
                                                 />
                                                 {activeSuggestionField === 'FLAT' && filteredCustomers.length > 0 && (
                                                     <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-slate-800 border border-white/10 rounded-lg shadow-2xl overflow-hidden max-h-32 overflow-y-auto">
@@ -556,14 +558,15 @@ export default function SalesHistoryPage() {
                                                                 <input
                                                                     type="number"
                                                                     value={item.quantity}
-                                                                    step="0.01"
+                                                                    step="0.001"
+                                                                    required
                                                                     onChange={(e) => updateItemQuantity(item.id, parseFloat(e.target.value) || 0)}
                                                                     className="w-16 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-right text-xs text-white focus:outline-none focus:border-purple-500"
                                                                 />
                                                                 <span className="text-[10px] text-slate-500">{item.product.unit}</span>
                                                             </div>
                                                         ) : (
-                                                            <>{item.quantity} {item.product.unit}</>
+                                                            <>{Number(item.quantity).toFixed(3)} x {item.product.unit}</>
                                                         )}
                                                     </td>
                                                     <td className="px-4 py-3 text-right text-slate-400">{formatCurrency(Number(item.unitPrice))}</td>
@@ -595,8 +598,9 @@ export default function SalesHistoryPage() {
                             )}
                         </div>
                     </Card>
-                </div>
-            )}
+                </div >
+            )
+            }
 
             <ConfirmationModal
                 isOpen={!!saleToDelete}
@@ -607,7 +611,7 @@ export default function SalesHistoryPage() {
                 confirmText="Delete Invoice"
                 isLoading={isDeleting}
             />
-        </div>
+        </div >
     )
 }
 

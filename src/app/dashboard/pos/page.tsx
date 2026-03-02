@@ -384,7 +384,7 @@ export default function POSPage() {
                                     <div className="flex-1">
                                         <div className="flex items-center flex-wrap gap-2">
                                             <p className="font-medium text-slate-200 text-sm md:text-[15px] leading-tight capitalize">{item.name.toLowerCase()}</p>
-                                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-white/5 uppercase tracking-tighter">{item.unit}</span>
+                                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-white/5 uppercase tracking-tighter">x {item.unit}</span>
                                         </div>
                                         <div className="flex items-center gap-2 mt-1">
                                             {item.batchNumber && (
@@ -556,7 +556,7 @@ export default function POSPage() {
                                                             {product.name.toLowerCase()}
                                                         </p>
                                                         <span className="text-[9px] font-black text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded border border-white/5 uppercase">
-                                                            {product.unit}
+                                                            x {product.unit}
                                                         </span>
                                                     </div>
                                                     <div className="flex items-center gap-3">
@@ -678,7 +678,7 @@ export default function POSPage() {
                             <div className="relative group rounded-2xl border border-white/10 bg-white/[0.02] focus-within:bg-white/[0.05] focus-within:border-purple-500/50 transition-all">
                                 <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
                                     <span className="text-[10px] font-black text-slate-500 group-focus-within:text-purple-400 uppercase tracking-widest transition-colors">
-                                        {customerInputMode}:
+                                        {customerInputMode} *:
                                     </span>
                                 </div>
                                 <input
@@ -691,6 +691,7 @@ export default function POSPage() {
                                     onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                                     className="w-full pl-24 pr-4 py-2.5 md:py-4 bg-transparent text-white placeholder:text-slate-700 outline-none text-sm font-bold tracking-wide"
                                     autoComplete="off"
+                                    required
                                 />
                                 {showSuggestions && filteredSuggestions.length > 0 && (
                                     <div

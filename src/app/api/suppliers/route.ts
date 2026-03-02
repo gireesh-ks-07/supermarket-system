@@ -20,12 +20,38 @@ export async function GET() {
     const supermarketId = await getSupermarketId()
     if (!supermarketId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const suppliers = await prisma.supplier.findMany({
-        where: { supermarketId },
-        orderBy: { name: 'asc' }
-    })
+    try {
+        const suppliers = await prisma.supplier.findMany({
+            where: { supermarketId },
+            orderBy: { name: 'asc' }
+        })
 
-    return NextResponse.json(suppliers)
+        // Fetch balances using raw SQL to bypass Prisma model mismatches/caching issues
+        const balances: any[] = await prisma.$queryRaw`
+            SELECT "supplierId", 
+                   CAST(SUM("totalAmount") AS FLOAT) as "totalAmount", 
+                   CAST(SUM("paidAmount") AS FLOAT) as "paidAmount"
+            FROM "Purchase"
+            WHERE "supermarketId" = ${supermarketId} AND "status" != 'CANCELLED'
+            GROUP BY "supplierId"
+        `
+
+        const suppliersWithBalance = suppliers.map(s => {
+            const balance = balances.find(b => b.supplierId === s.id)
+            const total = Number(balance?.totalAmount || 0)
+            const paid = Number(balance?.paidAmount || 0)
+
+            return {
+                ...s,
+                totalOwed: total - paid
+            }
+        })
+
+        return NextResponse.json(suppliersWithBalance)
+    } catch (e: any) {
+        console.error("SUPPLIERS_GET_ERROR:", e)
+        return NextResponse.json({ error: 'Failed to fetch suppliers', details: e.message }, { status: 500 })
+    }
 }
 
 const supplierSchema = z.object({

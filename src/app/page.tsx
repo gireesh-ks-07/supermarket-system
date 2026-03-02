@@ -74,8 +74,8 @@ export default function LoginPage() {
                             </motion.div>
                         )}
                         <div className="space-y-2">
-                            <Input name="username" placeholder="Username" required />
-                            <Input name="password" type="password" placeholder="Password" required />
+                            <Input name="username" placeholder="Username *" required />
+                            <Input name="password" type="password" placeholder="Password *" required />
                         </div>
 
                         <Button type="submit" className="w-full justify-center mt-4" isLoading={loading}>

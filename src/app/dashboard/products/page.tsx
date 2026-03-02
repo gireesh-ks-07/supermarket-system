@@ -23,7 +23,8 @@ const productSchema = z.object({
     costPrice: z.string().min(1, 'Cost required'),
     sellingPrice: z.string().min(1, 'Price required'),
     taxPercent: z.string().default('0'),
-    minStockLevel: z.string().default('10')
+    minStockLevel: z.string().default('10'),
+    pricingType: z.enum(['MRP', 'DYNAMIC']).default('MRP')
 })
 
 type Product = {
@@ -37,6 +38,7 @@ type Product = {
     sellingPrice: number
     taxPercent: number
     minStockLevel: number
+    pricingType?: string
 }
 
 // Fetcher
@@ -57,7 +59,7 @@ export default function ProductsPage() {
     const [formData, setFormData] = useState({
         name: '', barcode: '', category: '', brand: '',
         unitValue: '1', unitType: 'piece',
-        costPrice: '', sellingPrice: '', taxPercent: '0', minStockLevel: '10'
+        costPrice: '', sellingPrice: '', taxPercent: '0', minStockLevel: '10', pricingType: 'MRP'
     })
 
     const openEdit = (product: Product) => {
@@ -73,7 +75,8 @@ export default function ProductsPage() {
             costPrice: product.costPrice.toString(),
             sellingPrice: product.sellingPrice.toString(),
             taxPercent: product.taxPercent.toString(),
-            minStockLevel: product.minStockLevel.toString()
+            minStockLevel: product.minStockLevel.toString(),
+            pricingType: product.pricingType || 'MRP'
         })
         setIsAddModalOpen(true)
     }
@@ -83,7 +86,7 @@ export default function ProductsPage() {
         setFormData({
             name: '', barcode: '', category: '', brand: '',
             unitValue: '1', unitType: 'piece',
-            costPrice: '', sellingPrice: '', taxPercent: '0', minStockLevel: '10'
+            costPrice: '', sellingPrice: '', taxPercent: '0', minStockLevel: '10', pricingType: 'MRP'
         })
     }
 
@@ -189,6 +192,7 @@ export default function ProductsPage() {
                     if (h === 'price' || h === 'sellingprice') product.sellingPrice = values[index]
                     if (h === 'tax' || h === 'taxpercent') product.taxPercent = values[index]
                     if (h === 'minstock' || h === 'minstocklevel') product.minStockLevel = values[index]
+                    if (h === 'type' || h === 'pricingtype') product.pricingType = values[index].toUpperCase()
                 })
 
                 if (product.name && product.barcode) {
@@ -231,7 +235,7 @@ export default function ProductsPage() {
     }
 
     const downloadTemplate = () => {
-        const headers = ['name', 'barcode', 'category', 'brand', 'unit', 'cost', 'price', 'tax', 'minStock']
+        const headers = ['name', 'barcode', 'category', 'brand', 'unit', 'cost', 'price', 'tax', 'minStock', 'pricingType']
         const csvContent = "data:text/csv;charset=utf-8," + headers.join(",")
         const encodedUri = encodeURI(csvContent)
         const link = document.createElement("a")
@@ -369,6 +373,7 @@ export default function ProductsPage() {
                                             <th className="p-4 text-right">Cost</th>
                                             <th className="p-4 text-right">Price</th>
                                             <th className="p-4 text-center">Unit</th>
+                                            <th className="p-4 text-center">Type</th>
                                             <th className="p-4 text-right">Min Stock</th>
                                             {canManageStock && <th className="p-4 text-right">Actions</th>}
                                         </tr>
@@ -393,6 +398,11 @@ export default function ProductsPage() {
                                                 <td className="p-4 text-right text-slate-500 font-medium">{formatCurrency(product.costPrice)}</td>
                                                 <td className="p-4 text-right font-black text-emerald-400 text-base">{formatCurrency(product.sellingPrice)}</td>
                                                 <td className="p-4 text-center text-slate-400 font-bold uppercase text-[10px] tracking-widest">{product.unit}</td>
+                                                <td className="p-4 text-center">
+                                                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border ${product.pricingType === 'DYNAMIC' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : 'bg-slate-500/10 text-slate-400 border-slate-500/20'}`}>
+                                                        {product.pricingType || 'MRP'}
+                                                    </span>
+                                                </td>
                                                 <td className="p-4 text-right text-slate-500 font-bold">{product.minStockLevel}</td>
                                                 {canManageStock && (
                                                     <td className="p-4 text-right">
@@ -452,7 +462,8 @@ export default function ProductsPage() {
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <Input
-                                        label="Category"
+                                        label="Category *"
+                                        required
                                         list="category-options"
                                         value={formData.category}
                                         onChange={e => setFormData({ ...formData, category: e.target.value })}
@@ -495,13 +506,15 @@ export default function ProductsPage() {
                                         </select>
                                     </div>
                                     <Input
-                                        label="Min Stock Alert"
+                                        label="Min Stock Alert *"
+                                        required
                                         type="number"
                                         value={formData.minStockLevel}
                                         onChange={e => setFormData({ ...formData, minStockLevel: e.target.value })}
                                     />
                                     <Input
-                                        label="Tax (%)"
+                                        label="Tax (%) *"
+                                        required
                                         type="number"
                                         value={formData.taxPercent}
                                         onChange={e => setFormData({ ...formData, taxPercent: e.target.value })}
@@ -525,6 +538,17 @@ export default function ProductsPage() {
                                         onChange={e => setFormData({ ...formData, sellingPrice: e.target.value })}
                                         wrapperClassName="mb-0"
                                     />
+                                    <div>
+                                        <label className="label">Pricing Type</label>
+                                        <select
+                                            className="input w-full appearance-none h-11"
+                                            value={formData.pricingType}
+                                            onChange={e => setFormData({ ...formData, pricingType: e.target.value })}
+                                        >
+                                            <option value="MRP">MRP (Fixed)</option>
+                                            <option value="DYNAMIC">DYNAMIC (Auto-update Stocks)</option>
+                                        </select>
+                                    </div>
                                 </div>
 
                                 <div className="flex justify-end gap-3 pt-4 border-t border-white/10">

@@ -98,6 +98,21 @@ export async function POST(request: Request) {
             VALUES (${batchId}, ${productId}, ${batchNumber}, ${Number(quantity)}, ${finalDate && !isNaN(finalDate.getTime()) ? finalDate : null}, ${finalCost}, ${finalSell}, NOW())
         `
 
+        if ((product as any).pricingType === 'DYNAMIC') {
+            await prisma.$executeRaw`
+                UPDATE "ProductBatch" 
+                SET "sellingPrice" = ${finalSell}, "updatedAt" = NOW()
+                WHERE "productId" = ${productId}
+                  AND "id" != ${batchId}
+                  AND "quantity" > 0
+                  AND ("expiryDate" IS NULL OR "expiryDate" > NOW())
+            `
+            await prisma.product.update({
+                where: { id: productId },
+                data: { costPrice: finalCost, sellingPrice: finalSell }
+            })
+        }
+
         const batch = {
             id: batchId,
             productId,
@@ -163,6 +178,21 @@ export async function PUT(request: Request) {
             SET quantity = ${Number(quantity)}, "expiryDate" = ${finalDate && !isNaN(finalDate.getTime()) ? finalDate : null}, "costPrice" = ${finalCost}, "sellingPrice" = ${finalSell}, "updatedAt" = NOW() 
             WHERE id = ${id}
         `
+
+        if (batch.product.pricingType === 'DYNAMIC') {
+            await prisma.$executeRaw`
+                UPDATE "ProductBatch" 
+                SET "sellingPrice" = ${finalSell}, "updatedAt" = NOW()
+                WHERE "productId" = ${batch.productId}
+                  AND "id" != ${id}
+                  AND "quantity" > 0
+                  AND ("expiryDate" IS NULL OR "expiryDate" > NOW())
+            `
+            await prisma.product.update({
+                where: { id: batch.productId },
+                data: { costPrice: finalCost, sellingPrice: finalSell }
+            })
+        }
 
         const updated = {
             id,

@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,212 +7,176 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// 10. Multi-Supermarket (Tenant)
 model Supermarket {
-  id        String   @id @default(uuid())
-  name      String
-  address   String?
-  phone     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  users     User[]
-  products  Product[]
-  suppliers Supplier[]
-  sales     Sale[]
-  purchases Purchase[]
-  customers Customer[]
-  payments  Payment[]
-  expenses  Expense[]
+  id            String         @id @default(uuid())
+  name          String
+  address       String?
+  phone         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  customers     Customer[]
+  expenses      Expense[]
+  expiredStocks ExpiredStock[]
   notifications Notification[]
+  payments      Payment[]
+  products      Product[]
+  purchases     Purchase[]
+  sales         Sale[]
+  suppliers     Supplier[]
+  users         User[]
 }
 
-// 4. Authentication & Access Control
 model User {
   id            String      @id @default(uuid())
   supermarketId String
-  supermarket   Supermarket @relation(fields: [supermarketId], references: [id])
-  
   username      String
-  password      String // Hashed
-  role          String // ADMIN, STOCK_MANAGER, BILLING_STAFF
+  password      String
+  role          String
   name          String
-  pin           String? // For quick login
-
-  sales         Sale[] // Sales performed by this user (Cashier)
+  pin           String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
   expenses      Expense[]
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  sales         Sale[]
+  supermarket   Supermarket @relation(fields: [supermarketId], references: [id])
 
   @@unique([supermarketId, username])
 }
 
-// 5. Product Master
 model Product {
-  id            String      @id @default(uuid())
+  id            String         @id @default(uuid())
   supermarketId String
-  supermarket   Supermarket @relation(fields: [supermarketId], references: [id])
-
   name          String
   barcode       String
   category      String
   brand         String?
-  unit          String // kg, piece, etc.
+  unit          String
   costPrice     Decimal
   sellingPrice  Decimal
   taxPercent    Decimal
-  minStockLevel Int       @default(10)
-  isActive      Boolean   @default(true)
-
+  minStockLevel Int            @default(10)
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  pricingType   String?        @default("MRP")
+  expiredStocks ExpiredStock[] @relation("ProductToExpired")
+  supermarket   Supermarket    @relation(fields: [supermarketId], references: [id])
   batches       ProductBatch[]
-  saleItems     SaleItem[]
   purchaseItems PurchaseItem[]
-
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  saleItems     SaleItem[]
 
   @@unique([supermarketId, barcode])
 }
 
-// 5.2 Inventory Tracking (Batches)
 model ProductBatch {
-  id            String   @id @default(uuid())
-  productId     String
-  product       Product  @relation(fields: [productId], references: [id])
-  
-  batchNumber   String
-  expiryDate    DateTime?
-  quantity      Float      // Current stock in this batch
-  
-  purchaseId    String?
-  purchase      Purchase? @relation(fields: [purchaseId], references: [id])
-
-  costPrice     Decimal?
-  sellingPrice  Decimal?
-  
-  saleItems     SaleItem[]
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String    @id @default(uuid())
+  productId    String
+  batchNumber  String
+  expiryDate   DateTime?
+  quantity     Float
+  purchaseId   String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  costPrice    Decimal?
+  sellingPrice Decimal?
+  product      Product   @relation(fields: [productId], references: [id])
+  purchase     Purchase? @relation(fields: [purchaseId], references: [id])
 }
 
-// 6. Supplier
 model Supplier {
   id            String      @id @default(uuid())
   supermarketId String
-  supermarket   Supermarket @relation(fields: [supermarketId], references: [id])
-
   name          String
   phone         String?
   address       String?
   gstNumber     String?
   isActive      Boolean     @default(true)
-
   purchases     Purchase[]
+  supermarket   Supermarket @relation(fields: [supermarketId], references: [id])
 }
 
-// 6.2 Purchase Entry
 model Purchase {
-  id            String      @id @default(uuid())
+  id            String         @id @default(uuid())
   supermarketId String
-  supermarket   Supermarket @relation(fields: [supermarketId], references: [id])
-  
   supplierId    String
-  supplier      Supplier    @relation(fields: [supplierId], references: [id])
-
   invoiceNumber String?
   totalAmount   Decimal
-  status        String      @default("PENDING") // PENDING, RECEIVED
-  date          DateTime    @default(now())
-
+  status        String         @default("PENDING")
+  date          DateTime       @default(now())
+  paidAmount    Decimal?       @default(0)
+  paymentMode   String?        @default("CASH")
+  batches       ProductBatch[]
+  supermarket   Supermarket    @relation(fields: [supermarketId], references: [id])
+  supplier      Supplier       @relation(fields: [supplierId], references: [id])
   items         PurchaseItem[]
-  batches       ProductBatch[] // Batches created from this purchase
 }
 
 model PurchaseItem {
-  id         String   @id @default(uuid())
-  purchaseId String
-  purchase   Purchase @relation(fields: [purchaseId], references: [id])
-  
-  productId  String
-  product    Product  @relation(fields: [productId], references: [id])
-
-  quantity   Float
-  costPrice  Decimal
-  taxAmount  Decimal?
-  total      Decimal
+  id           String    @id @default(uuid())
+  purchaseId   String
+  productId    String
+  quantity     Float
+  costPrice    Decimal
+  taxAmount    Decimal?
+  total        Decimal
+  expiryDate   DateTime? @db.Timestamptz(6)
+  sellingPrice Decimal?
+  product      Product   @relation(fields: [productId], references: [id])
+  purchase     Purchase  @relation(fields: [purchaseId], references: [id])
 }
 
-// 7. Billing (POS)
 model Sale {
-  id            String      @id @default(uuid())
-  supermarketId String
-  supermarket   Supermarket @relation(fields: [supermarketId], references: [id])
-
-  invoiceNumber String    // E.g. INV-1001
-  cashierId     String
-  cashier       User        @relation(fields: [cashierId], references: [id])
-  
-  date          DateTime    @default(now())
-  
-  subTotal      Decimal
-  taxTotal      Decimal
-  discount      Decimal     @default(0)
-  totalAmount   Decimal
-  
-  paymentMode   String      // CASH, UPI, CARD
-  originalPaymentMode String? // To track if it was originally CREDIT then settled
-
-  items         SaleItem[]
-  
-  customerId    String?
-  customer      Customer?   @relation(fields: [customerId], references: [id])
+  id                  String      @id @default(uuid())
+  supermarketId       String
+  invoiceNumber       String
+  cashierId           String
+  date                DateTime    @default(now())
+  subTotal            Decimal
+  taxTotal            Decimal
+  discount            Decimal     @default(0)
+  totalAmount         Decimal
+  paymentMode         String
+  customerId          String?
+  originalPaymentMode String?
+  cashier             User        @relation(fields: [cashierId], references: [id])
+  customer            Customer?   @relation(fields: [customerId], references: [id])
+  supermarket         Supermarket @relation(fields: [supermarketId], references: [id])
+  items               SaleItem[]
 }
 
-// 8. Notifications
 model Notification {
   id            String      @id @default(uuid())
   supermarketId String
-  supermarket   Supermarket @relation(fields: [supermarketId], references: [id])
-  
   title         String
   message       String
-  type          String      // WARNING, INFO, SUCCESS
+  type          String
   link          String?
   isRead        Boolean     @default(false)
   createdAt     DateTime    @default(now())
+  supermarket   Supermarket @relation(fields: [supermarketId], references: [id])
 }
 
 model SaleItem {
   id        String  @id @default(uuid())
   saleId    String
-  sale      Sale    @relation(fields: [saleId], references: [id])
-  
   productId String
+  quantity  Float
+  unitPrice Decimal
+  taxAmount Decimal
+  total     Decimal
   product   Product @relation(fields: [productId], references: [id])
-
-  quantity      Float      // Current stock in this batch
-  unitPrice     Decimal
-  costPrice     Decimal?   // Track cost at time of sale
-  taxAmount     Decimal
-  total         Decimal
-  
-  batchId       String?    // Link to exact batch sold
-  batch         ProductBatch? @relation(fields: [batchId], references: [id])
+  sale      Sale    @relation(fields: [saleId], references: [id])
 }
 
 model Customer {
   id            String      @id @default(uuid())
   supermarketId String
-  supermarket   Supermarket @relation(fields: [supermarketId], references: [id])
-  
   name          String?
   phone         String?
   flatNumber    String?
-  
-  sales         Sale[]
+  supermarket   Supermarket @relation(fields: [supermarketId], references: [id])
   payments      Payment[]
+  sales         Sale[]
 
   @@unique([supermarketId, phone])
 }
@@ -223,33 +184,43 @@ model Customer {
 model Payment {
   id            String      @id @default(uuid())
   supermarketId String
-  supermarket   Supermarket @relation(fields: [supermarketId], references: [id])
-  
   customerId    String
-  customer      Customer    @relation(fields: [customerId], references: [id])
-  
   amount        Decimal
   date          DateTime    @default(now())
   note          String?
   type          String      @default("CREDIT_PAYMENT")
-  paymentMode   String      @default("CASH") // CASH, UPI, CARD
+  paymentMode   String      @default("CASH")
+  customer      Customer    @relation(fields: [customerId], references: [id])
+  supermarket   Supermarket @relation(fields: [supermarketId], references: [id])
 }
 
-// 11. Expense Management
 model Expense {
   id            String      @id @default(uuid())
   supermarketId String
-  supermarket   Supermarket @relation(fields: [supermarketId], references: [id])
-
   title         String
   amount        Decimal
-  category      String      // Rent, Electricity, Salaries, Maintenance, Miscellaneous, etc.
+  category      String
   date          DateTime    @default(now())
   note          String?
-
   userId        String?
-  user          User?       @relation(fields: [userId], references: [id])
-
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+  supermarket   Supermarket @relation(fields: [supermarketId], references: [id])
+  user          User?       @relation(fields: [userId], references: [id])
+}
+
+model ExpiredStock {
+  id            String      @id @default(uuid())
+  supermarketId String
+  productId     String
+  batchId       String
+  quantity      Float
+  type          String
+  status        String      @default("PENDING")
+  newBatchId    String?
+  note          String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  product       Product     @relation("ProductToExpired", fields: [productId], references: [id])
+  supermarket   Supermarket @relation(fields: [supermarketId], references: [id])
 }

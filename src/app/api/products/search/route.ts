@@ -48,7 +48,6 @@ export async function GET(request: Request) {
     ` as any[]
 
     const formattedResults = results.map(r => {
-        // Robust price selection (Postgres can return null for batch fields in LEFT JOIN)
         const sellingPrice = (r.batchSell !== null && r.batchSell !== undefined) ? Number(r.batchSell) : Number(r.prodSell)
         const costPrice = (r.batchCost !== null && r.batchCost !== undefined) ? Number(r.batchCost) : Number(r.prodCost)
 
@@ -63,9 +62,29 @@ export async function GET(request: Request) {
             stock: r.batchId ? Number(r.batchQty) : 0,
             sellingPrice: isNaN(sellingPrice) ? 0 : sellingPrice,
             costPrice: isNaN(costPrice) ? 0 : costPrice,
-            expiryDate: r.expiryDate
+            expiryDate: r.expiryDate,
         }
     })
 
-    return NextResponse.json(formattedResults)
+    // Group products by ID + sellingPrice
+    const grouped = new Map<string, any>()
+
+    for (const item of formattedResults) {
+        const key = `${item.id}-${item.sellingPrice}`
+        if (!grouped.has(key)) {
+            grouped.set(key, {
+                ...item,
+                batchId: null, // Clear batchId so it deducts FIFO across all matching batches
+                batchNumber: null,
+                stock: item.stock
+            })
+        } else {
+            const existing = grouped.get(key)
+            existing.stock += item.stock
+        }
+    }
+
+    const finalResults = Array.from(grouped.values())
+
+    return NextResponse.json(finalResults)
 }

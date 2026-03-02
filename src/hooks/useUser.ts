@@ -26,14 +26,14 @@ export function useUser() {
         user,
         isLoading,
         isError: error,
-        isAdmin: user?.role === 'ADMIN',
-        isManager: user?.role === 'STOCK_MANAGER',
-        isCashier: user?.role === 'BILLING_STAFF',
+        isAdmin: user?.role?.toUpperCase() === 'ADMIN',
+        isManager: user?.role?.toUpperCase() === 'STOCK_MANAGER',
+        isCashier: user?.role?.toUpperCase() === 'BILLING_STAFF',
 
         // Permissions
-        canManageUsers: user?.role === 'ADMIN',
-        canManageStock: user?.role === 'ADMIN' || user?.role === 'STOCK_MANAGER',
-        canEdit: user?.role === 'ADMIN' || user?.role === 'STOCK_MANAGER',
-        canDelete: user?.role === 'ADMIN' // Only Admin can delete usually
+        canManageUsers: user?.role?.toUpperCase() === 'ADMIN',
+        canManageStock: user?.role?.toUpperCase() === 'ADMIN' || user?.role?.toUpperCase() === 'STOCK_MANAGER',
+        canEdit: user?.role?.toUpperCase() === 'ADMIN' || user?.role?.toUpperCase() === 'STOCK_MANAGER',
+        canDelete: user?.role?.toUpperCase() === 'ADMIN' // Only Admin can delete usually
     }
 }
