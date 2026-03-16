@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Search, Filter, Calendar, CreditCard, Banknote, QrCode, FileText, ChevronRight, X, ArrowUpRight, Edit2, Trash2, Save, AlertCircle } from 'lucide-react'
+import { Search, Filter, Calendar, CreditCard, Banknote, QrCode, FileText, ChevronRight, X, ArrowUpRight, Edit2, Trash2, Save, AlertCircle, Send } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal'
@@ -52,6 +52,11 @@ export default function SalesHistoryPage() {
     const [allNames, setAllNames] = useState<any[]>([])
     const [filteredCustomers, setFilteredCustomers] = useState<any[]>([])
     const [activeSuggestionField, setActiveSuggestionField] = useState<'NAME' | 'FLAT' | null>(null)
+    const [shareModal, setShareModal] = useState<{ show: boolean, sale: any, phone: string } | null>(null)
+
+    // Product search for edit mode
+    const [searchQuery, setSearchQuery] = useState('')
+    const [searchResults, setSearchResults] = useState<any[]>([])
 
     // Filters
     const [period, setPeriod] = useState('day')
@@ -171,7 +176,114 @@ export default function SalesHistoryPage() {
         setEditedSale({ ...editedSale, items: updatedItems, totalAmount: newTotal })
     }
 
+    const searchProduct = async (q: string) => {
+        setSearchQuery(q)
+        if (!q) {
+            setSearchResults([])
+            return
+        }
+        try {
+            const res = await fetch(`/api/products/search?q=${q}`)
+            const data = await res.json()
+            setSearchResults(data)
+        } catch (e) {
+            console.error('Failed to search product', e)
+        }
+    }
+
+    const addNewItemToSale = (product: any) => {
+        if (!editedSale) return
+
+        const price = Number(product.sellingPrice)
+        let updatedItems = [...editedSale.items]
+        
+        // Find if already exists using productId
+        const existingItemIndex = updatedItems.findIndex((i: any) => i.productId === product.id)
+        
+        if (existingItemIndex >= 0) {
+            const item = updatedItems[existingItemIndex]
+            updatedItems[existingItemIndex] = {
+                ...item,
+                quantity: item.quantity + 1,
+                total: (item.quantity + 1) * price
+            }
+        } else {
+            updatedItems.push({
+                id: 'temp-' + Date.now(),
+                saleId: editedSale.id,
+                productId: product.id,
+                quantity: 1,
+                unitPrice: price,
+                taxAmount: 0,
+                total: price,
+                product: {
+                    id: product.id,
+                    name: product.name,
+                    barcode: product.barcode,
+                    unit: product.unit,
+                    sellingPrice: price
+                }
+            } as any)
+        }
+        
+        const newTotal = updatedItems.reduce((acc, i) => acc + i.total, 0)
+        setEditedSale({ ...editedSale, items: updatedItems, totalAmount: newTotal })
+        
+        setSearchQuery('')
+        setSearchResults([])
+    }
+
+    const removeItemFromSale = (itemId: string) => {
+        if (!editedSale) return
+        const updatedItems = editedSale.items.filter(item => item.id !== itemId)
+        const newTotal = updatedItems.reduce((acc, i) => acc + i.total, 0)
+        setEditedSale({ ...editedSale, items: updatedItems, totalAmount: newTotal })
+    }
+
     const getTotalRevenue = () => sales.reduce((acc, s) => acc + Number(s.totalAmount), 0)
+
+    const promptWhatsAppShare = (sale: Sale) => {
+        let defaultPhone = ''
+        if (sale.customer) {
+            defaultPhone = (sale.customer as any).phone || sale.customer.name
+        }
+        
+        let initialPhone = defaultPhone ? defaultPhone.replace(/\D/g, '').slice(-10) : ''
+        
+        if (initialPhone && initialPhone.length >= 10) {
+            handleWhatsAppShare(sale, initialPhone)
+            return
+        }
+        
+        setShareModal({ show: true, sale, phone: '' })
+    }
+
+    const handleWhatsAppShare = (sale: Sale, specificNumber: string = '') => {
+        const link = `${window.location.protocol}//${window.location.host}/invoice/${sale.id}`
+        
+        const message = `*Your Purchase Invoice*
+
+Invoice No: *${sale.invoiceNumber}*
+Date: ${new Date(sale.date).toLocaleDateString('en-GB')}
+Total Amount: *${formatCurrency(sale.totalAmount)}*
+
+Thank you for shopping with us!
+Your support means a lot to our business.
+
+View or download your invoice here:
+${link}
+
+Have a great day!`
+
+        let waUrl = `https://wa.me/?text=${encodeURIComponent(message)}`
+        
+        if (specificNumber) {
+            waUrl = `https://wa.me/91${specificNumber}?text=${encodeURIComponent(message)}`
+        }
+
+        window.open(waUrl, '_blank')
+        setShareModal(null)
+    }
 
     return (
         <div className="flex flex-col h-full gap-4">
@@ -359,19 +471,28 @@ export default function SalesHistoryPage() {
                                 <h3 className="font-bold text-lg text-white">{isEditing ? 'Edit Sale' : 'Sale Details'}</h3>
                                 <p className="text-sm text-slate-400 font-mono">{selectedSale.invoiceNumber}</p>
                             </div>
-                            <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2">
                                 {!isEditing && (
                                     <>
                                         <Button
                                             variant="secondary"
+                                            onClick={() => promptWhatsAppShare(selectedSale)}
+                                            className="h-8 px-3 text-xs bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600 hover:text-white border-emerald-500/30"
+                                        >
+                                            <Send size={14} className="mr-1.5" /> Share
+                                        </Button>
+                                        <Button
+                                            variant="secondary"
                                             onClick={() => {
-                                                setEditedSale({ ...selectedSale })
+                                                setIsEditing(true)
+                                                setEditedSale(selectedSale)
                                                 setEditedCustomer({
                                                     name: selectedSale.customer?.name || '',
                                                     flatNumber: selectedSale.customer?.flatNumber || '',
                                                     phone: (selectedSale.customer as any)?.phone || ''
                                                 })
-                                                setIsEditing(true)
+                                                setSearchQuery('')
+                                                setSearchResults([])
                                             }}
                                             className="h-8 px-3 text-xs bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white border-blue-500/30"
                                         >
@@ -549,8 +670,17 @@ export default function SalesHistoryPage() {
                                             {(isEditing ? editedSale?.items : selectedSale.items)?.map((item) => (
                                                 <tr key={item.id} className="hover:bg-white/5">
                                                     <td className="px-4 py-3">
-                                                        <p className="text-white font-medium">{item.product.name}</p>
-                                                        <p className="text-xs text-slate-500 font-mono">{item.product.barcode}</p>
+                                                        <div className="flex items-center gap-2">
+                                                            {isEditing && (
+                                                                <button onClick={() => removeItemFromSale(item.id)} className="text-red-400 hover:text-red-300 p-1 bg-red-500/10 rounded">
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            )}
+                                                            <div>
+                                                                <p className="text-white font-medium">{item.product.name}</p>
+                                                                <p className="text-xs text-slate-500 font-mono">{item.product.barcode}</p>
+                                                            </div>
+                                                        </div>
                                                     </td>
                                                     <td className="px-4 py-3 text-right">
                                                         {isEditing ? (
@@ -574,6 +704,38 @@ export default function SalesHistoryPage() {
                                                 </tr>
                                             ))}
                                         </tbody>
+                                        {isEditing && (
+                                            <tbody className="bg-slate-900/50">
+                                                <tr>
+                                                    <td colSpan={4} className="p-2 relative">
+                                                        <Input
+                                                            placeholder="Scan Barcode or Search Product to ADD..."
+                                                            value={searchQuery}
+                                                            onChange={(e) => searchProduct(e.target.value)}
+                                                            className="w-full bg-slate-800 border-dashed border-white/20 h-10 text-xs"
+                                                            wrapperClassName="mb-0"
+                                                        />
+                                                        {searchResults.length > 0 && searchQuery && (
+                                                            <div className="absolute top-full left-2 right-2 z-[60] bg-slate-800 border border-white/10 shadow-2xl rounded-lg max-h-48 overflow-y-auto mt-1">
+                                                                {searchResults.map((p, idx) => (
+                                                                    <button
+                                                                        key={p.id + '-' + idx}
+                                                                        onClick={() => addNewItemToSale(p)}
+                                                                        className="w-full text-left px-4 py-3 text-xs text-white hover:bg-white/10 border-b border-white/5 last:border-0 flex justify-between items-center"
+                                                                    >
+                                                                        <div>
+                                                                            <span className="font-bold">{p.name}</span>
+                                                                            <span className="ml-2 text-[10px] text-slate-400 font-mono">{p.barcode}</span>
+                                                                        </div>
+                                                                        <span className="text-emerald-400 font-mono">{formatCurrency(Number(p.sellingPrice))}</span>
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        )}
                                         <tfoot className="bg-white/5 font-bold">
                                             <tr>
                                                 <td colSpan={3} className="px-4 py-3 text-right text-slate-300">Grand Total</td>
@@ -611,6 +773,49 @@ export default function SalesHistoryPage() {
                 confirmText="Delete Invoice"
                 isLoading={isDeleting}
             />
+
+            {/* Share Modal */}
+            {
+                shareModal?.show && (
+                    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
+                        <Card className="w-full max-w-sm border-2 border-emerald-500/50 shadow-2xl shadow-emerald-500/20">
+                            <div className="p-6 text-center space-y-4">
+                                <div>
+                                    <h3 className="text-xl font-bold text-white mb-1">Share via WhatsApp</h3>
+                                    <p className="text-slate-400 text-xs">Enter a mobile number to share the receipt.</p>
+                                </div>
+                                <Input
+                                    placeholder="Enter 10 digit number"
+                                    value={shareModal.phone}
+                                    onChange={(e) => setShareModal({ ...shareModal, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                                    className="bg-slate-900 border-white/10 text-center font-bold tracking-widest text-lg h-12"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            handleWhatsAppShare(shareModal.sale, shareModal.phone)
+                                        }
+                                    }}
+                                />
+                                <div className="flex flex-col gap-3 pt-4">
+                                    <Button
+                                        className="w-full bg-emerald-600 hover:bg-emerald-700 font-bold"
+                                        onClick={() => handleWhatsAppShare(shareModal.sale, shareModal.phone)}
+                                    >
+                                        Share Now
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        className="w-full text-slate-400 hover:text-white"
+                                        onClick={() => setShareModal(null)}
+                                    >
+                                        Cancel
+                                    </Button>
+                                </div>
+                            </div>
+                        </Card>
+                    </div>
+                )
+            }
         </div >
     )
 }

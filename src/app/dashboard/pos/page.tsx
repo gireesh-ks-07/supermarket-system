@@ -169,7 +169,11 @@ export default function POSPage() {
                 const data = await res.json()
                 throw new Error(data.error || 'Transaction failed')
             }
+            
+            const data = await res.json()
 
+            const usedPhone = phoneNumber.trim()
+            
             setCart([])
             setFlatNumber('')
             setPhoneNumber('')
@@ -179,7 +183,9 @@ export default function POSPage() {
                 show: true,
                 type: 'success',
                 title: 'Sale Successful!',
-                message: 'Transaction has been completed and inventory updated.'
+                message: 'Transaction has been completed and inventory updated.',
+                invoice: data.invoice,
+                specificPhone: usedPhone
             })
         } catch (e: any) {
             setStatusModal({
@@ -204,7 +210,8 @@ export default function POSPage() {
     const [filteredSuggestions, setFilteredSuggestions] = useState<{ flatNumber: string, name: string, phone: string }[]>([])
     const [showSuggestions, setShowSuggestions] = useState(false)
     const [suggestionSelectedIndex, setSuggestionSelectedIndex] = useState(-1)
-    const [statusModal, setStatusModal] = useState<{ show: boolean, type: 'success' | 'error', message: string, title: string } | null>(null)
+    const [statusModal, setStatusModal] = useState<{ show: boolean, type: 'success' | 'error', message: string, title: string, invoice?: any, specificPhone?: string } | null>(null)
+    const [shareModal, setShareModal] = useState<{ show: boolean, sale: any, phone: string } | null>(null)
     const flatInputRef = useRef<HTMLInputElement>(null)
     const customerSuggestionsRef = useRef<HTMLDivElement>(null)
 
@@ -319,6 +326,45 @@ export default function POSPage() {
         const updated = drafts.filter(d => d.id !== id)
         setDrafts(updated)
         localStorage.setItem('pos_drafts', JSON.stringify(updated))
+    }
+
+    const handleWhatsAppShare = (sale: any, specificPhone?: string) => {
+        let phoneToUse = specificPhone !== undefined ? specificPhone : ''
+        // Also check if sale has a customer object directly
+        if (!phoneToUse && sale.customer?.phone) {
+            phoneToUse = sale.customer.phone
+        }
+        
+        if (!phoneToUse) {
+            setShareModal({ show: true, sale, phone: '' })
+            return
+        }
+        
+        const cleanPhone = phoneToUse.replace(/\D/g, '').slice(-10)
+
+        const link = `${window.location.protocol}//${window.location.host}/invoice/${sale.id}`
+        const message = `*Your Purchase Invoice*
+
+Invoice No: *${sale.invoiceNumber}*
+Date: ${new Date(sale.date).toLocaleDateString('en-GB')}
+Total Amount: *${formatCurrency(sale.totalAmount)}*
+
+Thank you for shopping with us!
+Your support means a lot to our business.
+
+View or download your invoice here:
+${link}
+
+Have a great day!`
+
+        let waUrl = `https://wa.me/?text=${encodeURIComponent(message)}`
+        
+        if (cleanPhone.length >= 10) {
+            waUrl = `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(message)}`
+        }
+
+        window.open(waUrl, '_blank')
+        setShareModal(null)
     }
 
     const [activeTab, setActiveTab] = useState<'cart' | 'actions'>('cart')
@@ -825,24 +871,36 @@ export default function POSPage() {
             {
                 statusModal?.show && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
-                        <Card className={`w-full max-w-sm border-2 overflow-hidden shadow-2xl ${statusModal?.type === 'success' ? 'border-emerald-500/50 shadow-emerald-500/20' : 'border-red-500/50 shadow-red-500/20'}`}>
+                        <Card className={`w-full max-w-sm border-2 overflow-hidden shadow-2xl ${statusModal.type === 'success' ? 'border-emerald-500/50 shadow-emerald-500/20' : 'border-red-500/50 shadow-red-500/20'}`}>
                             <div className="p-6 text-center space-y-4">
-                                <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center ${statusModal?.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-500'}`}>
-                                    {statusModal?.type === 'success' ? <CheckCircle2 size={32} /> : <AlertCircle size={32} />}
+                                <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center ${statusModal.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-500'}`}>
+                                    {statusModal.type === 'success' ? <CheckCircle2 size={32} /> : <AlertCircle size={32} />}
                                 </div>
                                 <div>
-                                    <h3 className="text-xl font-bold text-white mb-1">{statusModal?.title}</h3>
-                                    <p className="text-slate-400 text-sm">{statusModal?.message}</p>
+                                    <h3 className="text-xl font-bold text-white mb-1">{statusModal.title}</h3>
+                                    <p className="text-slate-400 text-sm">{statusModal.message}</p>
                                 </div>
-                                <Button
-                                    className={`w-full mt-4 ${statusModal?.type === 'success' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-600 hover:bg-red-700'}`}
-                                    onClick={() => setStatusModal(null)}
-                                >
-                                    Continue
-                                </Button>
+
+                                <div className="flex flex-col gap-3 mt-4">
+                                    <Button
+                                        className={`w-full ${statusModal.type === 'success' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-600 hover:bg-red-700'}`}
+                                        onClick={() => setStatusModal(null)}
+                                    >
+                                        Continue
+                                    </Button>
+
+                                    {statusModal.type === 'success' && statusModal.invoice && (
+                                        <Button
+                                            className="w-full bg-slate-800 text-emerald-400 hover:bg-slate-700 border border-emerald-500/30 flex items-center justify-center gap-2 font-bold"
+                                            onClick={() => handleWhatsAppShare(statusModal.invoice, statusModal.specificPhone)}
+                                        >
+                                            Share via WhatsApp
+                                        </Button>
+                                    )}
+                                </div>
                             </div>
                             {/* Progress Bar for Auto-dismiss (optional) but for POS acknowledgement is better */}
-                            <div className={`h-1 w-full ${statusModal?.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'} opacity-30`} />
+                            <div className={`h-1 w-full ${statusModal.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'} opacity-30`} />
                         </Card>
                     </div>
                 )
@@ -891,6 +949,48 @@ export default function POSPage() {
                                         onClick={() => setPendingNavigation(null)}
                                     >
                                         Cancel & Stay on Page
+                                    </Button>
+                                </div>
+                            </div>
+                        </Card>
+                    </div>
+                )
+            }
+            {/* Share Modal */}
+            {
+                shareModal?.show && (
+                    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
+                        <Card className="w-full max-w-sm border-2 border-emerald-500/50 shadow-2xl shadow-emerald-500/20">
+                            <div className="p-6 text-center space-y-4">
+                                <div>
+                                    <h3 className="text-xl font-bold text-white mb-1">Share via WhatsApp</h3>
+                                    <p className="text-slate-400 text-xs">Enter a mobile number to share the receipt.</p>
+                                </div>
+                                <Input
+                                    placeholder="Enter 10 digit number"
+                                    value={shareModal.phone}
+                                    onChange={(e) => setShareModal({ ...shareModal, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                                    className="bg-slate-900 border-white/10 text-center font-bold tracking-widest text-lg h-12"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            handleWhatsAppShare(shareModal.sale, shareModal.phone)
+                                        }
+                                    }}
+                                />
+                                <div className="flex flex-col gap-3 pt-4">
+                                    <Button
+                                        className="w-full bg-emerald-600 hover:bg-emerald-700 font-bold"
+                                        onClick={() => handleWhatsAppShare(shareModal.sale, shareModal.phone)}
+                                    >
+                                        Share Now
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        className="w-full text-slate-400 hover:text-white"
+                                        onClick={() => setShareModal(null)}
+                                    >
+                                        Cancel
                                     </Button>
                                 </div>
                             </div>

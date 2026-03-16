@@ -138,6 +138,16 @@ export async function POST(request: Request) {
 
             // 2. If status is RECEIVED, create batches immediately
             if (status === 'RECEIVED') {
+                const suppliers = await tx.$queryRawUnsafe('SELECT * FROM "Supplier" WHERE id = $1', supplierId) as any[]
+                const supplierName = suppliers[0]?.name || 'Unknown Supplier'
+                
+                const expenseId = (await import('node:crypto')).randomUUID()
+                await tx.$executeRawUnsafe(
+                    `INSERT INTO "Expense" ("id", "supermarketId", "title", "amount", "category", "date", "note", "createdAt", "updatedAt")
+                     VALUES ($1, $2, $3, $4, $5, NOW(), $6, NOW(), NOW())`,
+                    expenseId, supermarketId, `Purchase from ${supplierName} (Inv: ${invoiceNumber || 'N/A'})`, totalAmount, 'Purchase', `Auto-generated from PO: ${id}`
+                )
+
                 for (const item of items) {
                     const product = await tx.product.findUnique({ where: { id: item.productId } })
                     const batchNum = `PO-${purchase.id.slice(0, 8)}-${Date.now().toString().slice(-4)}`
@@ -246,6 +256,18 @@ export async function PUT(request: Request) {
                     'UPDATE "Purchase" SET "status" = $1 WHERE id = $2',
                     'RECEIVED', id
                 )
+                
+                const suppliers = await tx.$queryRawUnsafe('SELECT * FROM "Supplier" WHERE id = $1', purchase.supplierId) as any[]
+                const supplierName = suppliers[0]?.name || 'Unknown Supplier'
+                const finalTotal = updatedItems ? (updatedItems as any[]).reduce((acc, it) => acc + Number(it.total || 0), 0) : purchase.totalAmount
+                const finalInvoice = updatedItems ? (updatedInvoiceNumber || purchase.invoiceNumber) : purchase.invoiceNumber
+                
+                const expenseId = (await import('node:crypto')).randomUUID()
+                await tx.$executeRawUnsafe(
+                    `INSERT INTO "Expense" ("id", "supermarketId", "title", "amount", "category", "date", "note", "createdAt", "updatedAt")
+                     VALUES ($1, $2, $3, $4, $5, NOW(), $6, NOW(), NOW())`,
+                    expenseId, supermarketId, `Purchase from ${supplierName} (Inv: ${finalInvoice || 'N/A'})`, finalTotal, 'Purchase', `Auto-generated from PO: ${id}`
+                )
 
                 // 3. Get finalized items to create batches
                 const finalizedItems = await tx.$queryRawUnsafe(
@@ -319,6 +341,12 @@ export async function DELETE(request: Request) {
             await tx.purchaseItem.deleteMany({
                 where: { purchaseId: id }
             })
+
+            // 2.5 Delete associated expense if it was received
+            await tx.$executeRawUnsafe(
+                `DELETE FROM "Expense" WHERE "note" = $1 AND "supermarketId" = $2`,
+                `Auto-generated from PO: ${id}`, supermarketId
+            )
 
             // 3. Delete the purchase record
             await tx.purchase.delete({

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import useSWR from 'swr'
-import { Plus, Search, Calendar, Filter, X, Wallet, Tag } from 'lucide-react'
+import { Plus, Search, Calendar, Filter, X, Wallet, Tag, ShoppingCart } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { useUser } from '@/hooks/useUser'
@@ -171,17 +171,28 @@ export default function ExpensesPage() {
                             </div>
                         ) : (data.expenses.map((expense: any) => (
                             <div key={expense.id} className="p-4 flex flex-col md:flex-row md:items-center gap-3 md:gap-4 hover:bg-white/5 transition-all group border-b border-white/5 last:border-0">
-                                <div className="flex-1 flex items-start gap-3">
-                                    <div className="p-2 rounded-lg bg-red-500/10 text-red-500 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <Tag size={14} />
+                                <div className="flex-1 flex items-start gap-4">
+                                    <div className={`p-2.5 rounded-xl ${expense.category === 'Purchase' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/10'}`}>
+                                        {expense.category === 'Purchase' ? <ShoppingCart size={16} /> : <Tag size={16} />}
                                     </div>
                                     <div>
-                                        <h4 className="font-bold text-white text-sm md:text-base leading-tight">{expense.title}</h4>
+                                        <h4 className="font-bold text-white text-sm md:text-base leading-tight">
+                                            {expense.title.includes('(Inv: ') ? (
+                                                <>
+                                                    {expense.title.split('(Inv: ')[0]}
+                                                    <span className="text-slate-500 text-xs ml-2 font-mono">(Inv: {expense.title.split('(Inv: ')[1]}</span>
+                                                </>
+                                            ) : expense.title}
+                                        </h4>
                                         <div className="flex flex-wrap items-center gap-2 mt-1">
-                                            <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-800 text-slate-400 border border-white/5">
+                                            <span className={`px-2 py-0.5 rounded text-[9px] font-bold border ${expense.category === 'Purchase' ? 'bg-purple-900/30 text-purple-300 border-purple-500/30' : 'bg-slate-800 text-slate-400 border-white/5'}`}>
                                                 {expense.category}
                                             </span>
-                                            {expense.note && <span className="text-sm text-slate-500 font-medium truncate max-w-[200px]">/ {expense.note}</span>}
+                                            {expense.note && (
+                                                <span className={`text-sm font-medium truncate max-w-[300px] ${expense.note.includes('Auto-generated') ? 'text-purple-400/60' : 'text-slate-500'}`}>
+                                                    / {expense.note}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
