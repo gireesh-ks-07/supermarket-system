@@ -45,6 +45,12 @@ async function main() {
         const original = customer.flatNumber
         const normalized = normalize(original)
 
+        // Skip if no digits — likely a name, not a flat number (e.g., "Loss", "Lathika", "Assn Athul")
+        if (!/\d/.test(original)) {
+            console.log(`  ⏭️  Skipping "${original}" (looks like a name, not a flat number)`)
+            continue
+        }
+
         // Skip if already clean
         if (original === normalized) continue
 
