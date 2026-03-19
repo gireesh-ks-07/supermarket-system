@@ -73,7 +73,7 @@ export default async function InvoicePage(
                                         <p className="text-xs text-slate-500">{formatCurrency(Number(item.unitPrice))}</p>
                                     </td>
                                     <td className="py-3 text-center text-slate-600 font-medium">
-                                        {Number(item.quantity).toString()} {item.product.unit}
+                                        {Number(item.quantity).toString()} X {item.product.unit}
                                     </td>
                                     <td className="py-3 text-right font-bold text-slate-900">
                                         {formatCurrency(Number(item.total))}
