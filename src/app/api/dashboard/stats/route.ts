@@ -19,12 +19,30 @@ export async function GET() {
     const supermarketId = await getSupermarketId()
     if (!supermarketId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+    // Date Generators for IST (UTC+5:30)
+    const now = new Date()
+    const istString = now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })
+    // Parse as local to manipulate hours safely, then offset back to UTC
+    const istDate = new Date(istString) 
+
+    const startOfDayLocal = new Date(istDate)
+    startOfDayLocal.setHours(0, 0, 0, 0)
+    const startOfDay = new Date(startOfDayLocal.getTime() - (5.5 * 60 * 60 * 1000))
+
+    const startOfMonthLocal = new Date(istDate)
+    startOfMonthLocal.setDate(1)
+    startOfMonthLocal.setHours(0, 0, 0, 0)
+    const startOfMonth = new Date(startOfMonthLocal.getTime() - (5.5 * 60 * 60 * 1000))
+
+    const startOfWeekLocal = new Date(istDate)
+    startOfWeekLocal.setDate(startOfWeekLocal.getDate() - 6)
+    startOfWeekLocal.setHours(0, 0, 0, 0)
+    const startOfWeek = new Date(startOfWeekLocal.getTime() - (5.5 * 60 * 60 * 1000))
+
     // 1. Total Products
     const productsCount = await prisma.product.count({ where: { supermarketId } })
 
     // 2. Sales Today
-    const startOfDay = new Date()
-    startOfDay.setHours(0, 0, 0, 0)
     const salesToday = await prisma.sale.aggregate({
         where: {
             supermarketId,
@@ -50,18 +68,12 @@ export async function GET() {
     }).length
 
     // 4. Sales Monthly
-    const startOfMonth = new Date()
-    startOfMonth.setDate(1)
-    startOfMonth.setHours(0, 0, 0, 0)
     const monthlySales = await prisma.sale.aggregate({
         where: { supermarketId, date: { gte: startOfMonth } },
         _sum: { totalAmount: true }
     })
 
     // 5. Weekly Chart Data (Last 7 Days)
-    const startOfWeek = new Date()
-    startOfWeek.setDate(startOfWeek.getDate() - 6)
-    startOfWeek.setHours(0, 0, 0, 0)
 
     // Using group by raw or just JS processing. JS is safer for cross-db compatibility in MVP.
     const weeklySales = await prisma.sale.findMany({
@@ -79,13 +91,13 @@ export async function GET() {
     for (let i = 0; i < 7; i++) {
         const d = new Date(startOfWeek)
         d.setDate(d.getDate() + i)
-        // Format: Mon, Tue
-        const dayName = d.toLocaleDateString('en-US', { weekday: 'short' })
-        const dayKey = d.toDateString()
+        
+        const dayName = d.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short' })
+        const dayKey = d.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }) // Use a consistent IST date string
 
         const total = weeklySales
             .filter(s => {
-                const sDate = new Date(s.date).toDateString()
+                const sDate = new Date(s.date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })
                 return sDate === dayKey
             })
             .reduce((acc, curr) => acc + Number(curr.totalAmount), 0)
