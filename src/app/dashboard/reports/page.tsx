@@ -11,7 +11,7 @@ import {
     Search, FileText, PieChart, Banknote, QrCode, ArrowLeft, AlertCircle, Download, AlertTriangle, RefreshCcw, TrendingDown
 } from 'lucide-react'
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, getLocalDateString, getLocalMonthString } from '@/lib/utils'
 import { toast } from 'sonner'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
@@ -39,7 +39,7 @@ export default function ReportsPage() {
     // ... (rest of simple states) ...
     // Shared Date State (used by Business and Profit)
     const [period, setPeriod] = useState('daily')
-    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+    const [selectedDate, setSelectedDate] = useState(getLocalDateString())
 
     const { data: businessData, isLoading: businessLoading } = useSWR(
         activeTab === 'business' ? `/api/reports/business?period=${period}&date=${selectedDate}` : null,
@@ -54,7 +54,7 @@ export default function ReportsPage() {
     // Credit Report State
     const [flatNumber, setFlatNumber] = useState('')
     const [filterType, setFilterType] = useState('month') // date, month, year
-    const [filterValue, setFilterValue] = useState(new Date().toISOString().slice(0, 7)) // Default current month YYYY-MM
+    const [filterValue, setFilterValue] = useState(getLocalMonthString()) // Default current month YYYY-MM
     const [reportData, setReportData] = useState<any>(null)
     const [loading, setLoading] = useState(false)
     const [showPaymentModal, setShowPaymentModal] = useState(false)
@@ -586,7 +586,7 @@ export default function ReportsPage() {
                                     onClick={() => {
                                         const link = document.createElement('a');
                                         link.href = `/api/reports/credit-summary-csv?onlyDue=${showOnlyDue}`;
-                                        link.download = `credit_summary_${showOnlyDue ? 'pending_' : ''}${new Date().toISOString().split('T')[0]}.csv`;
+                                        link.download = `credit_summary_${showOnlyDue ? 'pending_' : ''}${getLocalDateString()}.csv`;
                                         document.body.appendChild(link);
                                         link.click();
                                         document.body.removeChild(link);
@@ -937,8 +937,8 @@ export default function ReportsPage() {
 
             {/* Payment Modal */}
             {showPaymentModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <Card className="w-full max-w-md bg-[#1e293b] border-white/10">
+                <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 pt-10 sm:pt-4 overflow-y-auto bg-black/60 backdrop-blur-sm">
+                    <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar bg-[#1e293b] border-white/10">
                         <div className="p-6 space-y-4">
                             <h2 className="text-xl font-bold text-white">Record Payment</h2>
                             <p className="text-sm text-slate-400">Record a payment from Flat {reportData?.customer?.flatNumber}</p>

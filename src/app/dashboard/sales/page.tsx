@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Search, Filter, Calendar, CreditCard, Banknote, QrCode, FileText, ChevronRight, X, ArrowUpRight, Edit2, Trash2, Save, AlertCircle, Send } from 'lucide-react'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, getLocalDateString, getLocalMonthString } from '@/lib/utils'
 import { toast } from 'sonner'
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal'
 
@@ -60,8 +60,8 @@ export default function SalesHistoryPage() {
 
     // Filters
     const [period, setPeriod] = useState('day')
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0])
-    const [month, setMonth] = useState(new Date().toISOString().slice(0, 7))
+    const [date, setDate] = useState(getLocalDateString())
+    const [month, setMonth] = useState(getLocalMonthString())
     const [paymentMode, setPaymentMode] = useState('ALL')
 
     const fetchSales = async () => {
@@ -464,7 +464,7 @@ Have a great day!`
 
             {/* Sale Detail Modal */}
             {selectedSale && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 pt-10 sm:pt-4 overflow-y-auto bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
                     <Card className="w-full max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden shadow-2xl border-white/10">
                         <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
                             <div>
@@ -777,7 +777,7 @@ Have a great day!`
             {/* Share Modal */}
             {
                 shareModal?.show && (
-                    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="fixed inset-0 z-[120] flex items-start sm:items-center justify-center p-4 pt-10 sm:pt-4 overflow-y-auto bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
                         <Card className="w-full max-w-sm border-2 border-emerald-500/50 shadow-2xl shadow-emerald-500/20">
                             <div className="p-6 text-center space-y-4">
                                 <div>

@@ -145,8 +145,8 @@ export default function UsersPage() {
 
             {/* Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <Card className="w-full max-w-md">
+                <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 pt-10 sm:pt-4 overflow-y-auto bg-black/60 backdrop-blur-sm">
+                    <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-bold text-white">
                                 {editingId ? 'Edit User' : 'Add New User'}

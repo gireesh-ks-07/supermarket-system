@@ -32,8 +32,71 @@ export async function POST(request: Request) {
         const result = await prisma.$transaction(async (tx) => {
             let customerId = null
 
-            if (flatNumber) {
-                // Find or create customer with this flat number OR name (since POS uses same field)
+            if (phoneNumber) {
+                const existingByPhone = await tx.customer.findFirst({
+                    where: { supermarketId: user.supermarketId, phone: phoneNumber }
+                })
+
+                if (existingByPhone) {
+                    customerId = existingByPhone.id
+                    if (flatNumber) {
+                        const newFlatNumber = flatNumber.includes(' ') ? null : flatNumber
+                        const newName = flatNumber.includes(' ') ? flatNumber : `Flat ${flatNumber}`
+                        
+                        if (existingByPhone.flatNumber !== newFlatNumber || existingByPhone.name !== newName) {
+                            await tx.customer.update({
+                                where: { id: customerId },
+                                data: {
+                                    flatNumber: newFlatNumber,
+                                    name: newName
+                                }
+                            })
+                        }
+                    }
+                } else {
+                    if (flatNumber) {
+                        const existingByFlat = await tx.customer.findFirst({
+                            where: {
+                                supermarketId: user.supermarketId,
+                                OR: [
+                                    { flatNumber },
+                                    { name: flatNumber }
+                                ]
+                            }
+                        })
+
+                        if (existingByFlat) {
+                            customerId = existingByFlat.id
+                            const newFlatNumber = flatNumber.includes(' ') ? null : flatNumber
+                            const newName = flatNumber.includes(' ') ? flatNumber : `Flat ${flatNumber}`
+                                
+                            await tx.customer.update({
+                                where: { id: customerId },
+                                data: { 
+                                    phone: phoneNumber,
+                                    flatNumber: newFlatNumber,
+                                    name: newName
+                                }
+                            })
+                        } else {
+                            const newCustomer = await tx.customer.create({
+                                data: {
+                                    supermarketId: user.supermarketId,
+                                    flatNumber: flatNumber.includes(' ') ? null : flatNumber,
+                                    name: flatNumber.includes(' ') ? flatNumber : `Flat ${flatNumber}`,
+                                    phone: phoneNumber
+                                }
+                            })
+                            customerId = newCustomer.id
+                        }
+                    } else {
+                        const newCustomer = await tx.customer.create({
+                            data: { supermarketId: user.supermarketId, phone: phoneNumber, name: 'Guest Customer' }
+                        })
+                        customerId = newCustomer.id
+                    }
+                }
+            } else if (flatNumber) {
                 const existingCustomer = await tx.customer.findFirst({
                     where: {
                         supermarketId: user.supermarketId,
@@ -46,34 +109,14 @@ export async function POST(request: Request) {
 
                 if (existingCustomer) {
                     customerId = existingCustomer.id
-                    // Update phone if provided and changed
-                    if (phoneNumber && existingCustomer.phone !== phoneNumber) {
-                        await tx.customer.update({
-                            where: { id: customerId },
-                            data: { phone: phoneNumber }
-                        })
-                    }
                 } else {
                     const newCustomer = await tx.customer.create({
                         data: {
                             supermarketId: user.supermarketId,
                             flatNumber: flatNumber.includes(' ') ? null : flatNumber,
                             name: flatNumber.includes(' ') ? flatNumber : `Flat ${flatNumber}`,
-                            phone: phoneNumber || null
+                            phone: null
                         }
-                    })
-                    customerId = newCustomer.id
-                }
-            } else if (phoneNumber) {
-                // Customer only provided phone
-                const existingByPhone = await tx.customer.findFirst({
-                    where: { supermarketId: user.supermarketId, phone: phoneNumber }
-                })
-                if (existingByPhone) {
-                    customerId = existingByPhone.id
-                } else {
-                    const newCustomer = await tx.customer.create({
-                        data: { supermarketId: user.supermarketId, phone: phoneNumber, name: 'Guest Customer' }
                     })
                     customerId = newCustomer.id
                 }

@@ -677,7 +677,7 @@ Have a great day!`
             </div>
             {/* Checkout Modal */}
             {showCheckoutModal && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                <div className="fixed inset-0 z-[60] flex items-start sm:items-center justify-center p-4 pt-10 sm:pt-4 overflow-y-auto bg-black/60 backdrop-blur-sm">
                     <Card className="w-full max-w-lg flex flex-col p-4 md:p-6 border border-white/10 shadow-2xl bg-[#0f172a] overflow-visible">
                         <div className="flex justify-between items-start mb-6 border-b border-white/10 pb-4">
                             <div>
@@ -835,7 +835,7 @@ Have a great day!`
             {/* Drafts Modal */}
             {
                 showDrafts && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 pt-10 sm:pt-4 overflow-y-auto bg-black/60 backdrop-blur-sm">
                         <Card className="w-full max-w-lg max-h-[80vh] flex flex-col p-0">
                             <div className="p-4 border-b border-white/10 flex justify-between items-center">
                                 <h3 className="font-bold text-white">Held Bills / Drafts</h3>
@@ -870,7 +870,7 @@ Have a great day!`
             {/* Custom Status Modal */}
             {
                 statusModal?.show && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center p-4 pt-10 sm:pt-4 overflow-y-auto bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
                         <Card className={`w-full max-w-sm border-2 overflow-hidden shadow-2xl ${statusModal.type === 'success' ? 'border-emerald-500/50 shadow-emerald-500/20' : 'border-red-500/50 shadow-red-500/20'}`}>
                             <div className="p-6 text-center space-y-4">
                                 <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center ${statusModal.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-500'}`}>
@@ -908,7 +908,7 @@ Have a great day!`
             {/* Unsaved Navigation Modal */}
             {
                 pendingNavigation && (
-                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="fixed inset-0 z-[110] flex items-start sm:items-center justify-center p-4 pt-10 sm:pt-4 overflow-y-auto bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
                         <Card className="w-full max-w-md border-2 border-yellow-500/50 shadow-2xl shadow-yellow-500/20">
                             <div className="p-6 text-center space-y-4">
                                 <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center bg-yellow-500/10 text-yellow-500">
@@ -959,7 +959,7 @@ Have a great day!`
             {/* Share Modal */}
             {
                 shareModal?.show && (
-                    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="fixed inset-0 z-[120] flex items-start sm:items-center justify-center p-4 pt-10 sm:pt-4 overflow-y-auto bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
                         <Card className="w-full max-w-sm border-2 border-emerald-500/50 shadow-2xl shadow-emerald-500/20">
                             <div className="p-6 text-center space-y-4">
                                 <div>

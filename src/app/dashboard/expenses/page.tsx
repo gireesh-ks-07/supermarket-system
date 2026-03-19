@@ -7,17 +7,17 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { useUser } from '@/hooks/useUser'
 import { toast } from 'sonner'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, getLocalDateString } from '@/lib/utils'
 import { motion } from 'framer-motion'
 
 export default function ExpensesPage() {
     const { user } = useUser()
     const [period, setPeriod] = useState('daily')
     const [customDate, setCustomDate] = useState({
-        from: new Date().toISOString().split('T')[0],
-        to: new Date().toISOString().split('T')[0]
+        from: getLocalDateString(),
+        to: getLocalDateString()
     })
-    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+    const [selectedDate, setSelectedDate] = useState(getLocalDateString())
 
     // Modal State
     const [isAddOpen, setIsAddOpen] = useState(false)
@@ -25,7 +25,7 @@ export default function ExpensesPage() {
         title: '',
         amount: '',
         category: 'Miscellaneous',
-        date: new Date().toISOString().split('T')[0],
+        date: getLocalDateString(),
         note: ''
     })
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -63,7 +63,7 @@ export default function ExpensesPage() {
                 title: '',
                 amount: '',
                 category: 'Miscellaneous',
-                date: new Date().toISOString().split('T')[0],
+                date: getLocalDateString(),
                 note: ''
             })
             mutate() // Refresh data
@@ -221,11 +221,11 @@ export default function ExpensesPage() {
 
             {/* Add Expense Modal */}
             {isAddOpen && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-4 pt-10 sm:pt-4 overflow-y-auto w-full h-full">
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden"
+                        className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar flex flex-col"
                     >
                         <div className="p-4 border-b border-white/10 flex justify-between items-center bg-slate-800/50">
                             <h3 className="font-bold text-white">Add New Expense</h3>

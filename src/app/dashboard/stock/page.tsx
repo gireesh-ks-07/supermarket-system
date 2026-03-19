@@ -9,7 +9,7 @@ import { Truck, Plus, Search, Archive, AlertTriangle, User, X, Trash2, Edit2, Pa
 import Papa from 'papaparse'
 import { toast } from 'sonner'
 import { z } from 'zod'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, getLocalDateString } from '@/lib/utils'
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal'
 import { useUser } from '@/hooks/useUser'
 
@@ -233,7 +233,7 @@ function InventoryView() {
         const encodedUri = encodeURI(csvContent)
         const link = document.createElement("a")
         link.setAttribute("href", encodedUri)
-        link.setAttribute("download", `low_stock_report_${new Date().toISOString().split('T')[0]}.csv`)
+        link.setAttribute("download", `low_stock_report_${getLocalDateString()}.csv`)
         document.body.appendChild(link)
         link.click()
         document.body.removeChild(link)
@@ -427,7 +427,7 @@ function InventoryView() {
                                                                 productId: item.productId,
                                                                 batchNumber: item.batchNumber,
                                                                 quantity: item.quantity.toString(),
-                                                                expiryDate: item.expiryDate ? new Date(item.expiryDate).toISOString().split('T')[0] : '',
+                                                                expiryDate: item.expiryDate ? getLocalDateString(new Date(item.expiryDate)) : '',
                                                                 costPrice: item.costPrice?.toString() || '',
                                                                 sellingPrice: item.sellingPrice?.toString() || ''
                                                             })
@@ -571,7 +571,7 @@ function InventoryView() {
                                                                                 productId: item.productId,
                                                                                 batchNumber: item.batchNumber,
                                                                                 quantity: item.quantity.toString(),
-                                                                                expiryDate: item.expiryDate ? new Date(item.expiryDate).toISOString().split('T')[0] : '',
+                                                                                expiryDate: item.expiryDate ? getLocalDateString(new Date(item.expiryDate)) : '',
                                                                                 costPrice: item.costPrice?.toString() || '',
                                                                                 sellingPrice: item.sellingPrice?.toString() || ''
                                                                             })
@@ -627,8 +627,8 @@ function InventoryView() {
             {/* Add Stock Modal */}
             {
                 isAddModalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-                        <Card className="w-full max-w-md bg-slate-900 border-white/10 shadow-2xl">
+                    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 pt-10 sm:pt-4 overflow-y-auto bg-black/40 backdrop-blur-sm">
+                        <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar bg-slate-900 border-white/10 shadow-2xl">
                             <div className="p-2">
                                 <div className="flex justify-between items-center mb-6">
                                     <h2 className="text-xl font-bold text-white">{editBatchId ? 'Edit Stock Batch' : 'Add New Stock Batch'}</h2>
@@ -710,8 +710,8 @@ function InventoryView() {
 
             {/* Expired Handling Modal */}
             {expiredBatch && (
-                <div className="fixed inset-0 w-screen h-screen top-0 left-0 z-[999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
-                    <Card className={`w-full max-w-lg border-2 bg-slate-900 shadow-2xl ${expiredAction === 'REPLACE' ? 'border-blue-500/30' : 'border-red-500/30'}`}>
+                <div className="fixed inset-0 z-[999] flex items-start sm:items-center justify-center p-4 sm:p-0 pt-10 sm:pt-0 overflow-y-auto bg-black/70 backdrop-blur-md">
+                    <Card className={`w-full max-w-lg max-h-[90vh] overflow-y-auto custom-scrollbar border-2 bg-slate-900 shadow-2xl ${expiredAction === 'REPLACE' ? 'border-blue-500/30' : 'border-red-500/30'}`}>
                         <div className="p-6">
                             <div className="flex justify-between items-center mb-6">
                                 <div className="flex items-center gap-3">
@@ -1070,8 +1070,8 @@ function SuppliersView({ onViewOrders }: { onViewOrders: (id: string) => void })
             {/* Modals omitted for brevity - assuming they stay same but wrapped in responsive Card if needed */}
             {/* ... Modal code below (Add/Edit Supplier, Delete Supplier) ... */}
             {isAddModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-                    <Card className="w-full max-w-md bg-slate-900 border-white/10 shadow-2xl">
+                <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 pt-10 sm:pt-4 overflow-y-auto bg-black/40 backdrop-blur-sm">
+                    <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar bg-slate-900 border-white/10 shadow-2xl">
                         <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5">
                             <h2 className="text-xl font-bold text-white tracking-tight">{editingId ? 'Modify Supplier' : 'New Vendor'}</h2>
                             <button onClick={() => setIsAddModalOpen(false)} className="text-slate-500 hover:text-white transition-colors">
@@ -1575,7 +1575,7 @@ function PurchasesView({ filterSupplierId, clearFilter }: { filterSupplierId: st
 
             {/* Create PO Modal - Responsive Wrapped */}
             {isAddModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-2 md:p-4 bg-black/80 backdrop-blur-md">
+                <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 pt-10 md:p-4 md:pt-4 overflow-y-auto bg-black/80 backdrop-blur-md">
                     <Card className="w-full max-w-5xl max-h-[95vh] flex flex-col bg-slate-900 border-white/10 shadow-2xl overflow-hidden rounded-2xl">
                         <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5">
                             <div>
