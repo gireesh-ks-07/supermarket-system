@@ -177,6 +177,7 @@ export default function POSPage() {
             setCart([])
             setFlatNumber('')
             setPhoneNumber('')
+            setAmountGiven('')
             setShowCheckoutModal(false)
             refreshSuggestions()
             setStatusModal({
@@ -212,6 +213,7 @@ export default function POSPage() {
     const [suggestionSelectedIndex, setSuggestionSelectedIndex] = useState(-1)
     const [statusModal, setStatusModal] = useState<{ show: boolean, type: 'success' | 'error', message: string, title: string, invoice?: any, specificPhone?: string } | null>(null)
     const [shareModal, setShareModal] = useState<{ show: boolean, sale: any, phone: string } | null>(null)
+    const [amountGiven, setAmountGiven] = useState('')
     const flatInputRef = useRef<HTMLInputElement>(null)
     const customerSuggestionsRef = useRef<HTMLDivElement>(null)
 
@@ -775,6 +777,36 @@ Have a great day!`
                                     className="w-full pl-24 pr-4 py-2.5 md:py-4 bg-transparent text-white placeholder:text-slate-700 outline-none text-sm font-bold tracking-wide"
                                     autoComplete="off"
                                 />
+                            </div>
+
+                            {/* Cash Calculator */}
+                            <div className="p-3 bg-white/[0.02] border border-white/5 rounded-2xl space-y-3">
+                                <div className="flex items-center justify-between text-xs text-slate-400 font-bold uppercase tracking-widest px-2">
+                                    <span>Calculator (Optional)</span>
+                                </div>
+                                <div className="relative group rounded-xl border border-white/10 bg-white/[0.04] focus-within:bg-white/[0.08] focus-within:border-teal-500/50 transition-all">
+                                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                                        <span className="text-[10px] font-black text-slate-500 group-focus-within:text-teal-400 uppercase tracking-widest transition-colors">
+                                            Given (₹):
+                                        </span>
+                                    </div>
+                                    <input
+                                        type="number"
+                                        placeholder="0.00"
+                                        value={amountGiven}
+                                        onChange={(e) => setAmountGiven(e.target.value)}
+                                        className="w-full pl-24 pr-4 py-2 bg-transparent text-white placeholder:text-slate-700 outline-none text-sm font-bold tracking-wide"
+                                        autoComplete="off"
+                                    />
+                                </div>
+                                {Number(amountGiven) > 0 && (
+                                    <div className="flex justify-between items-center px-4 py-3 rounded-xl bg-teal-500/10 border border-teal-500/20">
+                                        <span className="text-xs font-black text-teal-500 uppercase tracking-widest">Change Due:</span>
+                                        <span className="text-xl font-black text-teal-400 drop-shadow-lg">
+                                            {formatCurrency(Math.max(0, Number(amountGiven) - total))}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Drafts / Hold Button */}

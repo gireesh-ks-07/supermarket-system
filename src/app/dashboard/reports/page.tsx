@@ -8,9 +8,10 @@ import { Input } from '@/components/ui/Input'
 import {
     BarChart3, Calendar, TrendingUp, DollarSign,
     CreditCard, ShoppingBag, ArrowUpRight, ArrowDownRight,
-    Search, FileText, PieChart, Banknote, QrCode, ArrowLeft, AlertCircle, Download, AlertTriangle, RefreshCcw, TrendingDown
+    Search, FileText, PieChart, Banknote, QrCode, ArrowLeft, AlertCircle, Download, AlertTriangle, RefreshCcw, TrendingDown, MessageCircle
 } from 'lucide-react'
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal'
+import { Pagination } from '@/components/ui/Pagination'
 import { formatCurrency, getLocalDateString, getLocalMonthString } from '@/lib/utils'
 import { toast } from 'sonner'
 import { clsx, type ClassValue } from 'clsx'
@@ -66,6 +67,9 @@ export default function ReportsPage() {
     const [creditSummary, setCreditSummary] = useState<any[]>([])
     const [viewMode, setViewMode] = useState<'summary' | 'individual'>('summary')
     const [showOnlyDue, setShowOnlyDue] = useState(false)
+    const [showWaPrompt, setShowWaPrompt] = useState(false)
+    const [waPaymentDetails, setWaPaymentDetails] = useState({ amount: 0, oldBalance: 0, customerName: '', customerId: '' })
+    const [waPhoneInput, setWaPhoneInput] = useState('')
 
     // All Products Sales State
     const { data: allProductSalesData, isLoading: allProductSalesLoading } = useSWR(
@@ -140,6 +144,17 @@ export default function ReportsPage() {
             if (res.ok) {
                 toast.success('Payment Recorded Successfully')
                 setShowPaymentModal(false)
+                
+                // Show Whatsapp prompt
+                setWaPaymentDetails({
+                    amount: Number(paymentAmount),
+                    oldBalance: reportData.balance,
+                    customerName: reportData.customer.name,
+                    customerId: reportData.customer.id
+                })
+                setWaPhoneInput(reportData.customer.phone || '')
+                setShowWaPrompt(true)
+
                 setPaymentAmount('')
                 setPaymentNote('')
                 fetchCreditReport() // Refresh data
@@ -166,6 +181,29 @@ export default function ReportsPage() {
         ...reportData.sales.map((s: any) => ({ ...s, type: 'SALE', amount: Number(s.totalAmount) })),
         ...(reportData.payments || []).map((p: any) => ({ ...p, type: 'PAYMENT', invoiceNumber: 'PAYMENT', paymentMode: p.type || 'PAYMENT', items: [], amount: Number(p.amount) }))
     ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) : []
+
+    const expiredDataArray = expiredData || []
+
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 20;
+
+    React.useEffect(() => { setCurrentPage(1) }, [activeTab, period, selectedDate, showOnlyDue, filterValue, flatNumber]);
+
+    const paginatedCreditSummary = filteredCreditSummary.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+    const paginatedTransactions = transactions.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+    const paginatedProductSales = (allProductSalesData || []).slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+    const paginatedExpiredData = expiredDataArray.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+
+    const getTotalPagesForTab = () => {
+        if (activeTab === 'credit') {
+            return Math.ceil((reportData ? transactions : filteredCreditSummary).length / ITEMS_PER_PAGE)
+        }
+        if (activeTab === 'product') return Math.ceil((allProductSalesData || []).length / ITEMS_PER_PAGE)
+        if (activeTab === 'expired') return Math.ceil(expiredDataArray.length / ITEMS_PER_PAGE)
+        return 1
+    }
+    const currentTotalPages = getTotalPagesForTab()
+
 
     return (
         <div className="space-y-6">
@@ -642,7 +680,7 @@ export default function ReportsPage() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-white/[0.04]">
-                                        {filteredCreditSummary.map((item, i) => (
+                                        {paginatedCreditSummary.map((item, i) => (
                                             <tr key={i} className="hover:bg-purple-600/[0.03] transition-all group border-b border-transparent hover:border-white/5">
                                                 <td className="px-6 py-5">
                                                     <div className="flex items-center gap-3">
@@ -769,7 +807,7 @@ export default function ReportsPage() {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-white/5">
-                                            {transactions.length > 0 ? transactions.map((txn: any) => (
+                                            {transactions.length > 0 ? paginatedTransactions.map((txn: any) => (
                                                 <tr key={txn.id} className={`transition-colors ${txn.type === 'PAYMENT' ? 'bg-green-500/5 hover:bg-green-500/10' : 'hover:bg-white/5'}`}>
                                                     <td className="px-6 py-4 font-medium text-white">
                                                         {new Date(txn.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).split(' ').join('/')}
@@ -877,7 +915,7 @@ export default function ReportsPage() {
                                             </td>
                                         </tr>
                                     ) : allProductSalesData && allProductSalesData.length > 0 ? (
-                                        allProductSalesData.map((item: any) => (
+                                        paginatedProductSales.map((item: any) => (
                                             <tr key={item.id} className="hover:bg-purple-600/[0.03] transition-all group border-b border-transparent hover:border-white/5">
                                                 <td className="px-6 py-5">
                                                     <div className="flex items-center gap-4">
@@ -1047,7 +1085,7 @@ export default function ReportsPage() {
                                 <tbody className="divide-y divide-white/5">
                                     {expiredLoading ? (
                                         <tr><td colSpan={5} className="p-10 text-center text-slate-500">Loading analysis...</td></tr>
-                                    ) : expiredData?.map((entry: any) => (
+                                    ) : paginatedExpiredData.map((entry: any) => (
                                         <tr key={entry.id} className="hover:bg-white/5 transition-all">
                                             <td className="p-4 text-slate-400 whitespace-nowrap">
                                                 {new Date(entry.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -1084,6 +1122,13 @@ export default function ReportsPage() {
                     </Card>
                 </div>
             )}
+            
+            {currentTotalPages > 1 && (
+                <div className="flex justify-center my-6">
+                    <Pagination currentPage={currentPage} totalPages={currentTotalPages} onPageChange={setCurrentPage} />
+                </div>
+            )}
+
             <ConfirmationModal
                 isOpen={!!paymentModeChange}
                 onClose={() => setPaymentModeChange(null)}
@@ -1112,6 +1157,49 @@ export default function ReportsPage() {
                 confirmText={`Change to ${paymentModeChange?.mode}`}
                 variant="info"
             />
+            {showWaPrompt && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <Card className="w-full max-w-sm p-6 bg-slate-900 border-green-500/30">
+                        <div className="flex flex-col items-center text-center space-y-4">
+                            <div className="w-16 h-16 rounded-full bg-green-500/20 text-green-500 flex items-center justify-center">
+                                <MessageCircle size={32} />
+                            </div>
+                            <h3 className="text-xl font-bold text-white">Send WhatsApp Receipt?</h3>
+                            
+                            <div className="w-full space-y-4 mt-4 text-left">
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-widest leading-relaxed">Customer Phone No <br/><span className="lowercase text-slate-500 font-medium">(with country code, e.g. 919876543210)</span></label>
+                                    <Input
+                                        value={waPhoneInput}
+                                        onChange={e => setWaPhoneInput(e.target.value)}
+                                        placeholder="919876543210"
+                                        className="w-full"
+                                    />
+                                </div>
+                                <div className="flex gap-3 pt-2">
+                                    <Button variant="secondary" onClick={() => setShowWaPrompt(false)} className="flex-1 bg-white/5 border-0 hover:bg-white/10">Skip</Button>
+                                    <Button onClick={() => {
+                                        let phoneStr = waPhoneInput.replace(/\D/g, '')
+                                        if (phoneStr.length === 10) phoneStr = '91' + phoneStr
+                                        
+                                        const remaining = waPaymentDetails.oldBalance - waPaymentDetails.amount;
+                                        let msg = '';
+                                        
+                                        if (remaining <= 0) {
+                                            msg = `*Payment Confirmation*\n\nHello ${waPaymentDetails.customerName} 👋\n\nWe have successfully received your payment.\n\nAmount Paid: ₹${waPaymentDetails.amount}\nStatus: ✅ Fully Settled\n\nYour account balance is now clear.\n\nThank you for shopping with us! 😊\nWe truly appreciate your support.`;
+                                        } else {
+                                            msg = `*Payment Update*\n\nHello ${waPaymentDetails.customerName} 👋\n\nWe have received your payment.\n\nAmount Paid: ₹${waPaymentDetails.amount}\nRemaining Balance: ₹${remaining.toFixed(2)}\nStatus: ⚠️ Partially Settled\n\nKindly clear the remaining amount at your convenience.\n\nThank you for your support! 😊`;
+                                        }
+                                        
+                                        window.open(`https://api.whatsapp.com/send?phone=${phoneStr}&text=${encodeURIComponent(msg)}`, '_blank')
+                                        setShowWaPrompt(false)
+                                    }} className="flex-1 bg-green-600 hover:bg-green-500 text-white border-0 shadow-lg shadow-green-900/20 font-bold tracking-wider">Send via WA</Button>
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            )}
         </div>
     )
 }

@@ -12,6 +12,7 @@ import { z } from 'zod'
 import { formatCurrency, getLocalDateString } from '@/lib/utils'
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal'
 import { useUser } from '@/hooks/useUser'
+import { Pagination } from '@/components/ui/Pagination'
 
 const fetcher = (url: string) => fetch(url).then(r => r.json())
 
@@ -27,6 +28,7 @@ type StockBatch = {
         name: string
         unit: string
         barcode: string
+        category: string
     }
 }
 
@@ -93,6 +95,8 @@ function InventoryView() {
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const [search, setSearch] = useState('')
+    const [filterCategory, setFilterCategory] = useState('ALL')
+    const [filterStatus, setFilterStatus] = useState('ALL')
 
     // Add Stock Form State
     const [formData, setFormData] = useState({
@@ -192,11 +196,34 @@ function InventoryView() {
         }
     }
 
-    const filteredBatches = batches?.filter(b =>
-        b.batchNumber.toLowerCase().includes(search.toLowerCase()) ||
-        b.product.name.toLowerCase().includes(search.toLowerCase()) ||
-        b.product.barcode.toLowerCase().includes(search.toLowerCase())
-    ) || []
+    const categories = Array.from(new Set(batches?.map(b => b.product.category) || [])).sort()
+
+    const filteredBatches = batches?.filter(b => {
+        const matchesSearch = b.batchNumber.toLowerCase().includes(search.toLowerCase()) ||
+            b.product.name.toLowerCase().includes(search.toLowerCase()) ||
+            b.product.barcode.toLowerCase().includes(search.toLowerCase())
+
+        const matchesCat = filterCategory === 'ALL' || b.product.category === filterCategory
+
+        const isExpired = b.expiryDate && new Date(b.expiryDate) < new Date()
+        const isOutOfStock = b.quantity <= 0
+
+        const matchesStatus =
+            filterStatus === 'ALL' ||
+            (filterStatus === 'EXPIRED' && isExpired && !isOutOfStock) ||
+            (filterStatus === 'OUT_OF_STOCK' && isOutOfStock)
+
+        return matchesSearch && matchesCat && matchesStatus
+    }) || []
+
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 20;
+
+    React.useEffect(() => { setCurrentPage(1) }, [search, filterCategory, filterStatus]);
+
+    const totalPages = Math.ceil(filteredBatches.length / ITEMS_PER_PAGE);
+    const paginatedBatches = filteredBatches.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
 
     const expiringSoon = batches?.filter(b => {
         if (!b.expiryDate) return false
@@ -336,15 +363,46 @@ function InventoryView() {
             </div>
 
             <Card className="p-0 overflow-hidden border-white/10 bg-slate-900/40">
-                <div className="p-4 border-b border-white/5 flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center bg-white/5">
-                    <div className="relative w-full lg:w-96">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-                        <input
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="w-full bg-slate-950/50 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm text-white focus:border-purple-500 transition-all outline-none placeholder:text-slate-600"
-                            placeholder="Search by name, barcode, or batch..."
-                        />
+                <div className="p-4 border-b border-white/5 flex flex-col xl:flex-row gap-4 justify-between items-start xl:items-center bg-white/5">
+                    <div className="flex flex-col md:flex-row gap-3 w-full xl:w-auto">
+                        <div className="relative w-full md:w-64 lg:w-80">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                            <input
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="w-full bg-slate-950/50 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm text-white focus:border-purple-500 transition-all outline-none placeholder:text-slate-600"
+                                placeholder="Search by name, barcode, or batch..."
+                            />
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            <div className="relative w-full sm:w-40 xl:w-44">
+                                <select
+                                    value={filterCategory}
+                                    onChange={(e) => setFilterCategory(e.target.value)}
+                                    className="w-full bg-slate-950/50 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:border-purple-500 transition-all outline-none appearance-none cursor-pointer"
+                                    style={{ paddingRight: '2rem' }}
+                                >
+                                    <option value="ALL" className="text-black">All Categories</option>
+                                    {categories.map(c => (
+                                        <option key={c} value={c} className="text-black">{c}</option>
+                                    ))}
+                                </select>
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none text-xs">▼</div>
+                            </div>
+                            <div className="relative w-full sm:w-40">
+                                <select
+                                    value={filterStatus}
+                                    onChange={(e) => setFilterStatus(e.target.value)}
+                                    className="w-full bg-slate-950/50 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:border-purple-500 transition-all outline-none appearance-none cursor-pointer"
+                                    style={{ paddingRight: '2rem' }}
+                                >
+                                    <option value="ALL" className="text-black">All Status</option>
+                                    <option value="EXPIRED" className="text-black">Expired</option>
+                                    <option value="OUT_OF_STOCK" className="text-black">Out of Stock</option>
+                                </select>
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none text-xs">▼</div>
+                            </div>
+                        </div>
                     </div>
                     <div className="flex flex-wrap gap-2 w-full lg:w-auto">
                         <Button
@@ -406,7 +464,7 @@ function InventoryView() {
                     <>
                         {/* Mobile List */}
                         <div className="grid grid-cols-1 gap-4 p-4 md:hidden">
-                            {filteredBatches.map(item => (
+                            {paginatedBatches.map(item => (
                                 <div key={item.id} className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3 relative overflow-hidden group">
                                     <div className="flex justify-between items-start">
                                         <div className="flex-1 pr-10">
@@ -527,7 +585,7 @@ function InventoryView() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/5">
-                                    {filteredBatches.map(item => (
+                                    {paginatedBatches.map(item => (
                                         <tr key={item.id} className="hover:bg-white/5 transition-all group">
                                             <td className="p-4 font-mono text-slate-500 text-xs">#{item.batchNumber}</td>
                                             <td className="p-4 font-bold text-white">
@@ -620,6 +678,11 @@ function InventoryView() {
                                 </tbody>
                             </table>
                         </div>
+                        {totalPages > 1 && (
+                            <div className="p-4 bg-[#0f172a] border-t border-white/5 relative z-10 shrink-0">
+                                <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+                            </div>
+                        )}
                     </>
                 )}
             </Card>

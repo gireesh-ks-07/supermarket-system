@@ -11,6 +11,7 @@ import { z } from 'zod'
 import { formatCurrency } from '@/lib/utils'
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal'
 import { useUser } from '@/hooks/useUser'
+import { Pagination } from '@/components/ui/Pagination'
 
 // Validations
 const productSchema = z.object({
@@ -56,6 +57,7 @@ export default function ProductsPage() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const [submitting, setSubmitting] = useState(false)
     const [search, setSearch] = useState('')
+    const [filterCategory, setFilterCategory] = useState('ALL')
 
     // Form State
     const [formData, setFormData] = useState({
@@ -251,10 +253,19 @@ export default function ProductsPage() {
         document.body.removeChild(link)
     }
 
-    const filteredProducts = products?.filter(p =>
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.barcode.includes(search)
-    ) || []
+    const filteredProducts = products?.filter(p => {
+        const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.barcode.includes(search)
+        const matchesCat = filterCategory === 'ALL' || p.category === filterCategory
+        return matchesSearch && matchesCat
+    }) || []
+
+    const [currentPage, setCurrentPage] = React.useState(1);
+    const ITEMS_PER_PAGE = 20;
+
+    React.useEffect(() => { setCurrentPage(1) }, [search, filterCategory]);
+    
+    const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
+    const paginatedProducts = filteredProducts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
     const categories = Array.from(new Set(products?.map(p => p.category) || [])).sort()
 
@@ -291,7 +302,7 @@ export default function ProductsPage() {
 
             {/* Filters */}
             <div className="flex flex-col gap-2">
-                <div className="flex gap-4">
+                <div className="flex flex-col md:flex-row gap-4">
                     <Card className="flex-1 p-2.5 md:p-3 flex items-center gap-3 bg-slate-900/60 transition-all border-white/10">
                         <Search className="text-slate-400" size={18} />
                         <input
@@ -300,6 +311,19 @@ export default function ProductsPage() {
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
+                    </Card>
+                    <Card className="p-2.5 md:p-3 flex items-center bg-slate-900/60 transition-all border-white/10 w-full md:w-48 xl:w-64 relative">
+                        <select
+                            value={filterCategory}
+                            onChange={(e) => setFilterCategory(e.target.value)}
+                            className="w-full bg-transparent text-white outline-none text-sm cursor-pointer appearance-none z-10 font-bold"
+                        >
+                            <option value="ALL" className="text-black">All Categories</option>
+                            {categories.map(c => (
+                                <option key={c} value={c} className="text-black">{c}</option>
+                            ))}
+                        </select>
+                        <div className="absolute right-4 text-slate-500 pointer-events-none">▼</div>
                     </Card>
                 </div>
                 <button
@@ -329,7 +353,7 @@ export default function ProductsPage() {
                     <>
                         {/* Mobile List */}
                         <div className="grid grid-cols-1 gap-4 md:hidden">
-                            {filteredProducts.map((product) => (
+                            {paginatedProducts.map((product) => (
                                 <Card key={product.id} className="p-4 bg-slate-900/40 border-white/10 relative overflow-hidden group">
                                     <div className="flex justify-between items-start mb-3">
                                         <div className="flex-1 pr-12">
@@ -384,7 +408,7 @@ export default function ProductsPage() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-white/5">
-                                        {filteredProducts.map((product) => (
+                                        {paginatedProducts.map((product) => (
                                             <tr key={product.id} className="hover:bg-white/5 transition-colors group">
                                                 <td className="p-4 font-bold text-white">
                                                     <div className="flex items-center gap-3">
@@ -433,6 +457,11 @@ export default function ProductsPage() {
                                 </table>
                             </div>
                         </Card>
+                        {totalPages > 1 && (
+                            <div className="mt-4">
+                                <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+                            </div>
+                        )}
                     </>
                 )}
             </div>

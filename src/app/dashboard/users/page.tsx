@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input'
 import { User, Plus, Edit2, Trash2, Shield, Key, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal'
+import { Pagination } from '@/components/ui/Pagination'
 
 type UserType = {
     id: string
@@ -27,6 +28,12 @@ export default function UsersPage() {
     const [formData, setFormData] = useState({
         name: '', username: '', password: '', role: 'BILLING_STAFF', pin: ''
     })
+
+    const [currentPage, setCurrentPage] = useState(1)
+    const ITEMS_PER_PAGE = 9
+
+    const totalPages = Math.ceil(users.length / ITEMS_PER_PAGE)
+    const paginatedUsers = users.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
 
     useEffect(() => {
         fetchUsers()
@@ -107,8 +114,8 @@ export default function UsersPage() {
                 </Button>
             </div>
 
-            <div className="grid grid-cols-3 gap-6">
-                {users.map(user => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {paginatedUsers.map(user => (
                     <Card key={user.id} className="group hover:border-purple-500/30 transition-all">
                         <div className="flex justify-between items-start mb-4">
                             <div className={`p-3 rounded-xl ${user.role === 'ADMIN' ? 'bg-purple-500/10 text-purple-400' :
@@ -142,6 +149,12 @@ export default function UsersPage() {
                     </Card>
                 ))}
             </div>
+
+            {totalPages > 1 && (
+                <div className="mt-6 flex justify-center">
+                    <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+                </div>
+            )}
 
             {/* Modal */}
             {isModalOpen && (

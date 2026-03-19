@@ -8,6 +8,7 @@ import { Search, Filter, Calendar, CreditCard, Banknote, QrCode, FileText, Chevr
 import { formatCurrency, getLocalDateString, getLocalMonthString } from '@/lib/utils'
 import { toast } from 'sonner'
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal'
+import { Pagination } from '@/components/ui/Pagination'
 
 type SaleItem = {
     id: string
@@ -63,6 +64,14 @@ export default function SalesHistoryPage() {
     const [date, setDate] = useState(getLocalDateString())
     const [month, setMonth] = useState(getLocalMonthString())
     const [paymentMode, setPaymentMode] = useState('ALL')
+
+    const [currentPage, setCurrentPage] = useState(1)
+    const ITEMS_PER_PAGE = 20
+
+    useEffect(() => { setCurrentPage(1) }, [period, date, month, paymentMode])
+
+    const totalPages = Math.ceil(sales.length / ITEMS_PER_PAGE);
+    const paginatedSales = sales.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
     const fetchSales = async () => {
         setLoading(true)
@@ -368,7 +377,7 @@ Have a great day!`
                         <div className="col-span-1 text-center">Action</div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto custom-scrollbar">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 relative z-0">
                         {loading ? (
                             <div className="flex items-center justify-center h-40 text-slate-500">
                                 <div className="flex flex-col items-center gap-2">
@@ -384,7 +393,7 @@ Have a great day!`
                                 <p className="font-bold text-sm">No sales found for this period.</p>
                             </div>
                         ) : (
-                            sales.map((sale) => (
+                            paginatedSales.map((sale) => (
                                 <div key={sale.id} className={`flex flex-col md:grid md:grid-cols-12 gap-2 md:gap-4 p-4 border-b border-white/5 items-center text-sm transition-all group relative ${sale.type === 'PAYMENT' ? 'bg-green-500/5 hover:bg-green-500/10' : 'hover:bg-white/5'}`}>
                                     <div className="w-full md:col-span-2 flex justify-between md:block">
                                         <div className="text-slate-300 font-bold">
@@ -457,6 +466,11 @@ Have a great day!`
                                     </div>
                                 </div>
                             ))
+                        )}
+                        {totalPages > 1 && (
+                            <div className="p-4 border-t border-white/5 mt-auto">
+                                <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+                            </div>
                         )}
                     </div>
                 </Card>

@@ -9,9 +9,13 @@ import { useUser } from '@/hooks/useUser'
 import { toast } from 'sonner'
 import { formatCurrency, getLocalDateString } from '@/lib/utils'
 import { motion } from 'framer-motion'
+import { Pagination } from '@/components/ui/Pagination'
 
 export default function ExpensesPage() {
     const { user } = useUser()
+    const [currentPage, setCurrentPage] = useState(1)
+    const ITEMS_PER_PAGE = 15
+
     const [period, setPeriod] = useState('daily')
     const [customDate, setCustomDate] = useState({
         from: getLocalDateString(),
@@ -42,6 +46,15 @@ export default function ExpensesPage() {
     }
 
     const { data, mutate, isLoading } = useSWR(getApiUrl(), (url) => fetch(url).then(res => res.json()))
+
+    React.useEffect(() => {
+        setCurrentPage(1)
+    }, [period, customDate, selectedDate])
+
+    const expensesList = data?.expenses || [];
+    const totalPages = Math.ceil(expensesList.length / ITEMS_PER_PAGE);
+    const paginatedExpenses = expensesList.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
 
     const handleAddExpense = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -169,7 +182,7 @@ export default function ExpensesPage() {
                                 <Search size={40} className="opacity-10" />
                                 <p>No expenses recorded</p>
                             </div>
-                        ) : (data.expenses.map((expense: any) => (
+                        ) : (paginatedExpenses.map((expense: any) => (
                             <div key={expense.id} className="p-4 flex flex-col md:flex-row md:items-center gap-3 md:gap-4 hover:bg-white/5 transition-all group border-b border-white/5 last:border-0">
                                 <div className="flex-1 flex items-start gap-4">
                                     <div className={`p-2.5 rounded-xl ${expense.category === 'Purchase' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/10'}`}>
@@ -216,6 +229,11 @@ export default function ExpensesPage() {
                             </div>
                         )))}
                     </div>
+                    {totalPages > 1 && (
+                        <div className="p-4 border-t border-white/5 bg-slate-900/50">
+                            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+                        </div>
+                    )}
                 </Card>
             </div>
 

@@ -26,7 +26,8 @@ export async function GET() {
             b.*,
             p.name as "productName",
             p.unit as "productUnit",
-            p.barcode as "productBarcode"
+            p.barcode as "productBarcode",
+            p.category as "productCategory"
         FROM "ProductBatch" b
         JOIN "Product" p ON b."productId" = p.id
         WHERE p."supermarketId" = ${supermarketId}
@@ -36,7 +37,7 @@ export async function GET() {
     // Map to expected format for frontend
     const formattedBatches = batches.map(b => {
         // Ensure we handle Decimal strings from Postgres
-        const { productName, productUnit, productBarcode, ...rest } = b;
+        const { productName, productUnit, productBarcode, productCategory, ...rest } = b;
         return {
             ...rest,
             costPrice: b.costPrice ? Number(b.costPrice) : 0,
@@ -45,7 +46,8 @@ export async function GET() {
             product: {
                 name: b.productName,
                 unit: b.productUnit,
-                barcode: b.productBarcode
+                barcode: b.productBarcode,
+                category: b.productCategory || 'Uncategorized'
             }
         };
     })
