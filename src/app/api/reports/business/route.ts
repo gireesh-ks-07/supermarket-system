@@ -28,58 +28,57 @@ export async function GET(request: Request) {
     let endDate: Date | undefined
 
     // --------------------------------------------------------------------------------
-    // Logic: Calculate Start/End dates based on Period
+    // Logic: Calculate Start/End dates based on Period using Pseudo-Local IST dates
     // --------------------------------------------------------------------------------
-    const localDateStr = dateParam ? (dateParam.includes('T') ? dateParam : `${dateParam}T00:00:00`) : null
-    const baseDate = localDateStr ? new Date(localDateStr) : new Date()
-    if (isNaN(baseDate.getTime())) baseDate.setTime(Date.now())
+    // 1. Calculate pseudo-local basedate (where its internal node UTC fields align with IST wall clock)
+    const baseDate = dateParam 
+        ? new Date(`${dateParam.split('T')[0]}T00:00:00`) 
+        : new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }))
+
+    if (isNaN(baseDate.getTime())) baseDate.setTime(new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })).getTime())
 
     if (period === 'custom' && dateParam) {
         startDate = new Date(baseDate)
         endDate = new Date(startDate)
         endDate.setDate(endDate.getDate() + 1)
     } else if (period === 'daily') {
-        // Today (00:00 to 23:59)
         startDate = new Date(baseDate)
         startDate.setHours(0, 0, 0, 0)
-
         endDate = new Date(startDate)
         endDate.setDate(endDate.getDate() + 1)
     } else if (period === 'weekly') {
-        // Current Week (Monday to Sunday)
         startDate = new Date(baseDate)
-        const day = startDate.getDay() // 0 is Sun
-        const diff = startDate.getDate() - day + (day === 0 ? -6 : 1) // adjust when day is sunday
+        const day = startDate.getDay()
+        const diff = startDate.getDate() - day + (day === 0 ? -6 : 1)
         startDate.setDate(diff)
         startDate.setHours(0, 0, 0, 0)
-
         endDate = new Date(startDate)
         endDate.setDate(endDate.getDate() + 7)
     } else if (period === 'monthly') {
-        // Current Month (1st to Last)
         startDate = new Date(baseDate)
         startDate.setDate(1)
         startDate.setHours(0, 0, 0, 0)
-
         endDate = new Date(startDate)
         endDate.setMonth(endDate.getMonth() + 1)
     } else if (period === 'yearly') {
-        // Current Year (Jan 1 to Dec 31)
         startDate = new Date(baseDate)
-        startDate.setMonth(0, 1) // Jan 1
+        startDate.setMonth(0, 1)
         startDate.setHours(0, 0, 0, 0)
-
         endDate = new Date(startDate)
         endDate.setFullYear(endDate.getFullYear() + 1)
     }
 
+    // Convert pseudo-local boundary to true UTC boundary for exact database fetching
+    const realStartDate = new Date(startDate.getTime() - (5.5 * 60 * 60 * 1000))
+    const realEndDate = endDate ? new Date(endDate.getTime() - (5.5 * 60 * 60 * 1000)) : undefined
+
     // Common WHERE clause
     const whereClause: any = {
         supermarketId,
-        date: { gte: startDate }
+        date: { gte: realStartDate }
     }
-    if (endDate) {
-        whereClause.date.lt = endDate
+    if (realEndDate) {
+        whereClause.date.lt = realEndDate
     }
 
     // --------------------------------------------------------------------------------
@@ -88,7 +87,7 @@ export async function GET(request: Request) {
     const paidSales = await prisma.sale.findMany({
         where: {
             ...whereClause,
-            paymentMode: { not: 'CREDIT' } // Only count immediate payments (CASH/UPI)
+            paymentMode: { not: 'CREDIT' } 
         },
         select: {
             date: true,
@@ -98,10 +97,13 @@ export async function GET(request: Request) {
     })
 
     // --------------------------------------------------------------------------------
-    // 2. Fetch PAYMENTS (Credit Settlements)
+    // 2. Fetch CREDIT SETTLEMENTS
     // --------------------------------------------------------------------------------
     const creditSettlements = await prisma.payment.findMany({
-        where: whereClause, // Same date range
+        where: {
+            customer: { supermarketId },
+            date: { gte: realStartDate, ...(realEndDate ? { lt: realEndDate } : {}) }
+        },
         select: {
             date: true,
             amount: true,
@@ -125,7 +127,10 @@ export async function GET(request: Request) {
         for (let i = 0; i < 24; i++) {
             const label = i === 0 ? '12 AM' : i < 12 ? `${i} AM` : i === 12 ? '12 PM' : `${i - 12} PM`
             const total = allTransactions
-                .filter(t => new Date(t.date).getHours() === i)
+                .filter(t => {
+                    const istDateStr = new Date(t.date).toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })
+                    return new Date(istDateStr).getHours() === i
+                })
                 .reduce((acc, curr) => acc + curr.amount, 0)
             chartData.push({ label, value: total })
         }
@@ -136,16 +141,10 @@ export async function GET(request: Request) {
             d.setDate(d.getDate() + i)
             const label = d.toLocaleDateString('en-US', { weekday: 'short' })
 
-            // Create boundary validation for this day
-            const dayStart = new Date(d)
-            dayStart.setHours(0, 0, 0, 0)
-            const dayEnd = new Date(dayStart)
-            dayEnd.setDate(dayEnd.getDate() + 1)
-
             const total = allTransactions
                 .filter(t => {
-                    const tDate = new Date(t.date)
-                    return tDate >= dayStart && tDate < dayEnd
+                    const istDateStr = new Date(t.date).toLocaleString('en-US', { timeZone: 'Asia/Kolkata', weekday: 'short' })
+                    return istDateStr === label
                 })
                 .reduce((acc, curr) => acc + curr.amount, 0)
             chartData.push({ label, value: total })
@@ -157,7 +156,10 @@ export async function GET(request: Request) {
         for (let i = 1; i <= daysInMonth; i++) {
             const label = i.toString()
             const total = allTransactions
-                .filter(t => new Date(t.date).getDate() === i)
+                .filter(t => {
+                    const istDateStr = new Date(t.date).toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })
+                    return new Date(istDateStr).getDate() === i
+                })
                 .reduce((acc, curr) => acc + curr.amount, 0)
             chartData.push({ label, value: total })
         }
@@ -168,7 +170,10 @@ export async function GET(request: Request) {
             d.setMonth(d.getMonth() + i)
             const label = d.toLocaleDateString('en-US', { month: 'short' })
             const total = allTransactions
-                .filter(t => new Date(t.date).getMonth() === i)
+                .filter(t => {
+                    const istDateStr = new Date(t.date).toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })
+                    return new Date(istDateStr).getMonth() === i
+                })
                 .reduce((acc, curr) => acc + curr.amount, 0)
             chartData.push({ label, value: total })
         }

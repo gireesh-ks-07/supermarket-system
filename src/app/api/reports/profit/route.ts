@@ -27,35 +27,36 @@ export async function GET(request: Request) {
     let endDate: Date | undefined = undefined
 
     // --------------------------------------------------------------------------------
-    // Logic: Calculate Start/End dates based on Period
     // --------------------------------------------------------------------------------
-    const localDateStr = dateParam ? (dateParam.includes('T') ? dateParam : `${dateParam}T00:00:00`) : null
-    const baseDate = localDateStr ? new Date(localDateStr) : new Date()
-    if (isNaN(baseDate.getTime())) baseDate.setTime(Date.now())
+    // Logic: Calculate Start/End dates based on Period using pseudo-local IST constraints
+    // --------------------------------------------------------------------------------
+    const baseDate = dateParam 
+        ? new Date(`${dateParam.split('T')[0]}T00:00:00`) 
+        : new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }))
+
+    if (isNaN(baseDate.getTime())) baseDate.setTime(new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })).getTime())
 
     if (period === 'custom' && dateParam) {
         startDate = new Date(baseDate)
         endDate = new Date(startDate)
         endDate.setDate(endDate.getDate() + 1) // 1 day window for custom date
     } else if (period === 'daily') {
-        // Current day (00:00 - 23:59)
+        // Current day
         startDate = new Date(baseDate)
         startDate.setHours(0, 0, 0, 0)
 
         endDate = new Date(startDate)
         endDate.setDate(endDate.getDate() + 1)
     } else if (period === 'weekly') {
-        // Current Week (Monday to Sunday)
         startDate = new Date(baseDate)
-        const day = startDate.getDay() // 0 is Sun
-        const diff = startDate.getDate() - day + (day === 0 ? -6 : 1) // adjust when day is sunday
+        const day = startDate.getDay() 
+        const diff = startDate.getDate() - day + (day === 0 ? -6 : 1) 
         startDate.setDate(diff)
         startDate.setHours(0, 0, 0, 0)
 
         endDate = new Date(startDate)
         endDate.setDate(endDate.getDate() + 7)
     } else if (period === 'monthly') {
-        // Current Month
         startDate = new Date(baseDate)
         startDate.setDate(1)
         startDate.setHours(0, 0, 0, 0)
@@ -63,21 +64,24 @@ export async function GET(request: Request) {
         endDate = new Date(startDate)
         endDate.setMonth(endDate.getMonth() + 1)
     } else if (period === 'yearly') {
-        // Current Year
         startDate = new Date(baseDate)
-        startDate.setMonth(0, 1) // Jan 1
+        startDate.setMonth(0, 1) 
         startDate.setHours(0, 0, 0, 0)
 
         endDate = new Date(startDate)
         endDate.setFullYear(endDate.getFullYear() + 1)
     }
 
+    // Convert pseudo-local boundary to true UTC boundary 
+    const realStartDate = new Date(startDate.getTime() - (5.5 * 60 * 60 * 1000))
+    const realEndDate = endDate ? new Date(endDate.getTime() - (5.5 * 60 * 60 * 1000)) : undefined
+
     const whereClause: any = {
         supermarketId,
-        date: { gte: startDate }
+        date: { gte: realStartDate }
     }
-    if (endDate) {
-        whereClause.date.lt = endDate
+    if (realEndDate) {
+        whereClause.date.lt = realEndDate
     }
 
     try {
@@ -140,13 +144,10 @@ export async function GET(request: Request) {
 
                 let itemCost = 0
                 if (isVariable) {
-                    // For variable/dynamic products, strictly follow batch-specific cost (recorded at sale)
                     itemCost = (item.costPrice !== null && item.costPrice !== undefined)
                         ? Number(item.costPrice)
                         : (item.product?.costPrice ? Number(item.product.costPrice) : 0)
                 } else {
-                    // For MRP products, use the product's recorded cost price (usually fixed)
-                    // But if item specifically has a cost price recorded, that's more accurate for that stock
                     itemCost = (item.product?.costPrice ? Number(item.product.costPrice) : 0)
                 }
 
@@ -159,9 +160,10 @@ export async function GET(request: Request) {
             totalCost += saleCost
             totalProfit += profit
 
-            // Grouping logic
+            // Grouping logic - Convert sale.date into IST representations
             let key = ''
-            const d = new Date(sale.date)
+            const istDateStr = new Date(sale.date).toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })
+            const d = new Date(istDateStr)
 
             if (period === 'daily' || period === 'custom') {
                 const h = d.getHours()
@@ -171,7 +173,7 @@ export async function GET(request: Request) {
             } else if (period === 'monthly') {
                 key = d.getDate().toString()
             } else if (period === 'yearly') {
-                key = d.toLocaleString('default', { month: 'short' })
+                key = d.toLocaleString('en-US', { month: 'short' })
             }
 
             if (groupedData[key]) {
