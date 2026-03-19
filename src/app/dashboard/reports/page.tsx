@@ -1186,9 +1186,9 @@ export default function ReportsPage() {
                                         let msg = '';
                                         
                                         if (remaining <= 0) {
-                                            msg = `*Payment Confirmation*\n\nHello ${waPaymentDetails.customerName} 👋\n\nWe have successfully received your payment.\n\nAmount Paid: ₹${waPaymentDetails.amount}\nStatus: ✅ Fully Settled\n\nYour account balance is now clear.\n\nThank you for shopping with us! 😊\nWe truly appreciate your support.`;
+                                            msg = `*Payment Confirmation*\n\nHello ${waPaymentDetails.customerName} 👋\n\nWe have successfully received your payment.\n\nAmount Paid: ₹${Number(waPaymentDetails.amount).toFixed(2)}\nStatus: ✅ Fully Settled\n\nYour account balance is now clear.\n\nThank you for shopping with us! 😊\nWe truly appreciate your support.`;
                                         } else {
-                                            msg = `*Payment Update*\n\nHello ${waPaymentDetails.customerName} 👋\n\nWe have received your payment.\n\nAmount Paid: ₹${waPaymentDetails.amount}\nRemaining Balance: ₹${remaining.toFixed(2)}\nStatus: ⚠️ Partially Settled\n\nKindly clear the remaining amount at your convenience.\n\nThank you for your support! 😊`;
+                                            msg = `*Payment Update*\n\nHello ${waPaymentDetails.customerName} 👋\n\nWe have received your payment.\n\nAmount Paid: ₹${Number(waPaymentDetails.amount).toFixed(2)}\nRemaining Balance: ₹${remaining.toFixed(2)}\nStatus: ⚠️ Partially Settled\n\nKindly clear the remaining amount at your convenience.\n\nThank you for your support! 😊`;
                                         }
                                         
                                         window.open(`https://api.whatsapp.com/send?phone=${phoneStr}&text=${encodeURIComponent(msg)}`, '_blank')
