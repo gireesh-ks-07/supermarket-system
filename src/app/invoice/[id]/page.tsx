@@ -41,7 +41,7 @@ export default async function InvoicePage(
                     </div>
                     <div className="text-right">
                         <p className="text-slate-500 font-bold uppercase tracking-wider text-xs mb-1">Date</p>
-                        <p className="font-bold text-slate-900">{new Date(sale.date).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</p>
+                        <p className="font-bold text-slate-900">{new Date(sale.date).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</p>
                     </div>
                 </div>
 
